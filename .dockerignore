@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+
+# 构建产物
+bin/
+*.exe
+*.log
+
+# 临时文件
+*.tmp
+*.bak
+*~
+
+# 测试
+test.sh
+
+# 文档
+*.md
+!README.md
+
+# 环境配置
+.env
+.env.example
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Node modules (如果有前端)
+node_modules/
