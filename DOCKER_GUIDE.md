@@ -26,7 +26,7 @@ docker-compose -f docker-compose.single.yml down
 
 ```bash
 # 构建镜像
-docker build -t dangdangdang-push-server .
+docker build -t dengdeng-push-server .
 
 # 运行容器
 docker run -d \
@@ -37,7 +37,7 @@ docker run -d \
   -e POSTGRES_PASSWORD=postgres123 \
   -e HUAWEI_PROJECT_ID=101653523863440882 \
   -e PUSH_TOKEN_ENCRYPTION_KEY=your_encryption_key \
-  dangdangdang-push-server
+  dengdeng-push-server
 
 # 查看日志
 docker logs -f push-server

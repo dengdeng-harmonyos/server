@@ -1,4 +1,4 @@
-module github.com/yourusername/dangdangdang-push-server
+module github.com/dengdeng-harmenyos/server
 
 go 1.21
 

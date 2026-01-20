@@ -8,28 +8,34 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourusername/dangdangdang-push-server/internal/config"
-	"github.com/yourusername/dangdangdang-push-server/internal/database"
-	"github.com/yourusername/dangdangdang-push-server/internal/models"
-	"github.com/yourusername/dangdangdang-push-server/internal/service"
+	"github.com/dengdeng-harmenyos/server/internal/config"
+	"github.com/dengdeng-harmenyos/server/internal/database"
+	"github.com/dengdeng-harmenyos/server/internal/models"
+	"github.com/dengdeng-harmenyos/server/internal/service"
 )
 
 type PushHandler struct {
-	db            *database.Database
-	pushService   *service.HuaweiPushService
-	deviceHandler *DeviceHandler
+	db             *database.Database
+	pushService    *service.HuaweiPushService
+	deviceHandler  *DeviceHandler
+	serverName     string
+	cryptoService  *service.CryptoService
+	messageHandler *MessageHandler
 }
 
-func NewPushHandler(db *database.Database, deviceHandler *DeviceHandler, cfg config.HuaweiPushConfig) (*PushHandler, error) {
+func NewPushHandler(db *database.Database, deviceHandler *DeviceHandler, cfg config.HuaweiPushConfig, serverName string) (*PushHandler, error) {
 	pushService, err := service.NewHuaweiPushService(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	return &PushHandler{
-		db:            db,
-		pushService:   pushService,
-		deviceHandler: deviceHandler,
+		db:             db,
+		pushService:    pushService,
+		deviceHandler:  deviceHandler,
+		serverName:     serverName,
+		cryptoService:  service.NewCryptoService(),
+		messageHandler: NewMessageHandler(db.DB),
 	}, nil
 }
 
@@ -65,16 +71,65 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 			})
 			return
 		}
+	} else {
+		data = make(map[string]interface{})
 	}
 
-	// 发送推送
-	err = h.pushService.SendNotification(pushToken, req.Title, req.Body, data)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to send push: " + err.Error(),
-		})
-		return
+	// 添加服务器标识到data中
+	data["__server_name"] = h.serverName
+
+	// 获取设备公钥
+	publicKey, err := h.deviceHandler.GetPublicKey(req.DeviceKey)
+	if err != nil || publicKey == "" {
+		// 如果没有公钥，发送普通推送（兼容旧设备）
+		err = h.pushService.SendNotification(pushToken, req.Title, req.Body, data)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to send push: " + err.Error(),
+			})
+			return
+		}
+	} else {
+		// 有公钥，使用加密存储方案
+		// 1. 加密消息内容
+		messageContent := service.MessageContent{
+			Title:   req.Title,
+			Content: req.Body,
+			Data:    data,
+		}
+		encryptedMsg, err := h.cryptoService.EncryptMessage(publicKey, messageContent)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to encrypt message: " + err.Error(),
+			})
+			return
+		}
+
+		// 2. 保存加密消息到数据库
+		err = h.messageHandler.SaveEncryptedMessage(req.DeviceKey, h.serverName, encryptedMsg)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to save message: " + err.Error(),
+			})
+			return
+		}
+
+		// 3. 发送华为推送通知（只包含提示信息）
+		notificationData := map[string]interface{}{
+			"type":        "new_message",
+			"server_name": h.serverName,
+		}
+		err = h.pushService.SendNotification(pushToken, "新消息", "您有新的消息，请打开查看", notificationData)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to send notification: " + err.Error(),
+			})
+			return
+		}
 	}
 
 	// 更新统计

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	_ "github.com/lib/pq"
-	"github.com/yourusername/dangdangdang-push-server/internal/config"
+	"github.com/dengdeng-harmenyos/server/internal/config"
 )
 
 type Database struct {

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 )
 
@@ -12,8 +14,9 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port string
-	Mode string
+	Port       string
+	Mode       string
+	ServerName string // 服务器名称，用于标识消息来源
 }
 
 type DatabaseConfig struct {
@@ -38,11 +41,63 @@ type SecurityConfig struct {
 	MaxDailyPushPerDevice int    // 每设备每日最大推送数
 }
 
+// AgConnectServices 用于解析agconnect-services.json
+type AgConnectServices struct {
+	Client struct {
+		ProjectID string `json:"project_id"`
+	} `json:"client"`
+}
+
+// loadProjectIDFromAgConnect 从嵌入的配置或文件读取项目ID
+func loadProjectIDFromAgConnect(filePath string) (string, error) {
+	// 优先使用嵌入的配置
+	embeddedJSON := GetEmbeddedAgConnectJSON()
+	if embeddedJSON != "" {
+		var agConnect AgConnectServices
+		if err := json.Unmarshal([]byte(embeddedJSON), &agConnect); err == nil {
+			if agConnect.Client.ProjectID != "" {
+				return agConnect.Client.ProjectID, nil
+			}
+		}
+	}
+
+	// 如果嵌入配置失败，尝试从文件读取（用于开发环境）
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("无法读取agconnect-services.json: %w", err)
+	}
+
+	var agConnect AgConnectServices
+	if err := json.Unmarshal(data, &agConnect); err != nil {
+		return "", fmt.Errorf("无法解析agconnect-services.json: %w", err)
+	}
+
+	if agConnect.Client.ProjectID == "" {
+		return "", fmt.Errorf("agconnect-services.json中未找到project_id")
+	}
+
+	return agConnect.Client.ProjectID, nil
+}
+
 func Load() *Config {
+	// 尝试从agconnect-services.json读取ProjectID
+	agConnectFile := getEnv("HUAWEI_SERVICE_ACCOUNT_FILE", "./config/agconnect-services.json")
+	projectID := getEnv("HUAWEI_PROJECT_ID", "")
+
+	// 如果环境变量未设置，从agconnect-services.json读取
+	if projectID == "" {
+		if pid, err := loadProjectIDFromAgConnect(agConnectFile); err == nil {
+			projectID = pid
+		} else {
+			fmt.Printf("警告: 无法从agconnect-services.json读取project_id: %v\n", err)
+		}
+	}
+
 	return &Config{
 		Server: ServerConfig{
-			Port: getEnv("PORT", "8080"),
-			Mode: getEnv("GIN_MODE", "debug"),
+			Port:       getEnv("PORT", "8080"),
+			Mode:       getEnv("GIN_MODE", "debug"),
+			ServerName: getEnv("SERVER_NAME", "噔噔推送服务"),
 		},
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -53,13 +108,13 @@ func Load() *Config {
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
 		HuaweiPush: HuaweiPushConfig{
-			ProjectID:          getEnv("HUAWEI_PROJECT_ID", ""),
-			ServiceAccountFile: getEnv("HUAWEI_SERVICE_ACCOUNT_FILE", "./config/agconnect-services.json"),
+			ProjectID:          projectID,
+			ServiceAccountFile: agConnectFile,
 			JWTExpiry:          3600,
 			PushAPIURL:         "https://push-api.cloud.huawei.com/v3",
 		},
 		Security: SecurityConfig{
-			EncryptionKey:         getEnv("PUSH_TOKEN_ENCRYPTION_KEY", ""),
+			EncryptionKey:         getEncryptionKey(),
 			DeviceKeyTTL:          2592000, // 30天
 			MaxDailyPushPerDevice: 100,
 		},
@@ -71,4 +126,16 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// getEncryptionKey 获取加密密钥（优先使用嵌入的密钥）
+func getEncryptionKey() string {
+	// 优先使用嵌入的密钥（来自编译时注入）
+	embedded := GetEmbeddedEncryptionKey()
+	if embedded != "" {
+		return embedded
+	}
+
+	// 降级到环境变量
+	return getEnv("PUSH_TOKEN_ENCRYPTION_KEY", "")
 }

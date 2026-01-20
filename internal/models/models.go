@@ -7,6 +7,7 @@ type Device struct {
 	ID           int       `json:"id"`
 	DeviceKey    string    `json:"device_key"`  // 服务端生成的随机ID（对外使用）
 	PushToken    string    `json:"-"`           // 华为Push Token（加密存储，不对外暴露）
+	PublicKey    string    `json:"-"`           // RSA公钥(PEM格式，不对外暴露)
 	DeviceType   string    `json:"device_type"` // phone/tablet/watch
 	OSVersion    string    `json:"os_version"`  // HarmonyOS版本
 	AppVersion   string    `json:"app_version"` // App版本
@@ -30,6 +31,7 @@ type PushStatistics struct {
 // DeviceRegisterRequest 设备注册请求
 type DeviceRegisterRequest struct {
 	PushToken  string `json:"push_token" binding:"required"`
+	PublicKey  string `json:"public_key"` // RSA公钥(PEM格式)
 	DeviceType string `json:"device_type"`
 	OSVersion  string `json:"os_version"`
 	AppVersion string `json:"app_version"`

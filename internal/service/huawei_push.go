@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/yourusername/dangdangdang-push-server/internal/config"
-	"github.com/yourusername/dangdangdang-push-server/internal/logger"
+	"github.com/dengdeng-harmenyos/server/internal/config"
+	"github.com/dengdeng-harmenyos/server/internal/logger"
 )
 
 // HuaweiPushService 华为Push Kit v3推送服务
@@ -79,13 +79,25 @@ func NewHuaweiPushService(cfg config.HuaweiPushConfig) (*HuaweiPushService, erro
 	}, nil
 }
 
-// loadServiceAccount 从服务账号密钥文件加载配置
+// loadServiceAccount 从嵌入的配置或文件加载服务账号
 func loadServiceAccount(filePath string) (*rsa.PrivateKey, string, string, string, error) {
-	logger.Debug("Loading service account from: %s", filePath)
+	logger.Debug("Loading service account...")
 
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, "", "", "", fmt.Errorf("failed to read service account file: %w", err)
+	var data []byte
+	var err error
+
+	// 优先使用嵌入的配置
+	embeddedJSON := config.GetEmbeddedPrivateJSON()
+	if embeddedJSON != "" {
+		logger.Debug("Using embedded service account configuration")
+		data = []byte(embeddedJSON)
+	} else {
+		// 如果嵌入配置为空，从文件读取（用于开发环境）
+		logger.Debug("Loading service account from file: %s", filePath)
+		data, err = os.ReadFile(filePath)
+		if err != nil {
+			return nil, "", "", "", fmt.Errorf("failed to read service account file: %w", err)
+		}
 	}
 
 	var config ServiceAccountConfig
@@ -236,10 +248,11 @@ func (s *HuaweiPushService) SendNotification(pushToken, title, body string, data
 	// 构建通知消息payload
 	payload := AlertPayload{
 		Notification: Notification{
-			Category:    "WORK", // 默认使用即时聊天类型，可根据业务需求修改
+			Category:    "WORK", // 默认使用工作提醒类型，可根据业务需求修改
 			Title:       title,
 			Body:        body,
 			ClickAction: clickAction,
+			Badge:       &Badge{AddNum: 1}, // 默认角标加1
 		},
 	}
 
@@ -321,6 +334,7 @@ func (s *HuaweiPushService) SendBatchNotification(pushTokens []string, title, bo
 			Title:       title,
 			Body:        body,
 			ClickAction: clickAction,
+			Badge:       &Badge{AddNum: 1}, // 默认角标加1
 		},
 	}
 
@@ -360,7 +374,7 @@ func (s *HuaweiPushService) sendPush(pushType int, tokens []string, payload inte
 	logger.Debug("Request payload: %s", string(jsonData))
 
 	// 构建请求
-	url := fmt.Sprintf("%s/%s/messages:send", s.config.PushAPIURL, s.config.ProjectID)
+	url := fmt.Sprintf("%s/%s/messages:send", s.config.PushAPIURL, s.projectID)
 	logger.Debug("Push URL: %s", url)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
