@@ -32,9 +32,6 @@ COPY --from=builder /app/main .
 COPY database /app/database
 RUN chmod +x /app/database/migrate.sh
 
-# 复制配置文件
-COPY config /app/config
-
 # 创建supervisor配置目录
 RUN mkdir -p /etc/supervisor.d
 
@@ -131,8 +128,7 @@ ENV POSTGRES_DB=push_server \
 ENV PORT=8080 \
   GIN_MODE=release \
   SERVER_NAME=噔噔推送服务 \
-  TZ=Asia/Shanghai \
-  HUAWEI_SERVICE_ACCOUNT_FILE=/app/config/private.json
+  TZ=Asia/Shanghai
 
 # 暴露端口
 EXPOSE 8080 5432
