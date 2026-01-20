@@ -40,7 +40,7 @@ jobs:
           # 转义JSON字符串用于ldflags
           AGCONNECT_ESCAPED=$(echo "$AGCONNECT_JSON" | sed 's/"/\\"/g' | tr -d '\n')
           PRIVATE_ESCAPED=$(echo "$PRIVATE_JSON" | sed 's/"/\\"/g' | tr -d '\n')
-          
+
           # 使用ldflags注入secrets到二进制文件
           go build -ldflags "\
             -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedAgConnectJSON=$AGCONNECT_ESCAPED' \
@@ -49,7 +49,7 @@ jobs:
             -s -w" \
             -o bin/dengdeng-server \
             cmd/server/main.go
-          
+
           chmod +x bin/dengdeng-server
           # 验证二进制文件可以执行
           ./bin/dengdeng-server --version || echo "Binary created successfully"
@@ -85,7 +85,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: dengdeng-server-${{ github.sha }}
-          path: server/bin/
+          path: bin/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -100,18 +100,18 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
+          # 镜像名称格式: username/imagename 或 registry/username/imagename
           images: ${{ secrets.DOCKER_USERNAME }}/dengdeng-server
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
+            type=raw,value={{date 'YYYYMMDD' tz='Asia/Shanghai'}}
+            type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=sha
 
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./server
+          context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
