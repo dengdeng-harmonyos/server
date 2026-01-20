@@ -48,8 +48,10 @@ jobs:
             -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedAgConnectJSON=$AGCONNECT_ESCAPED' \
             -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedPrivateJSON=$PRIVATE_ESCAPED' \
             -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedEncryptionKey=$ENCRYPTION_KEY' \
-        working-directory: ./server
-        run: |
+            -s -w" \
+            -o bin/dengdeng-server \
+            cmd/server/main.go
+          
           chmod +x bin/dengdeng-server
           # 验证二进制文件可以执行
           ./bin/dengdeng-server --version || echo "Binary created successfully"
