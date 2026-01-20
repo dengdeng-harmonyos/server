@@ -5,10 +5,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/yourusername/dangdangdang-push-server/internal/config"
-	"github.com/yourusername/dangdangdang-push-server/internal/database"
-	"github.com/yourusername/dangdangdang-push-server/internal/models"
-	"github.com/yourusername/dangdangdang-push-server/internal/service"
+	"github.com/dengdeng-harmenyos/server/internal/config"
+	"github.com/dengdeng-harmenyos/server/internal/database"
+	"github.com/dengdeng-harmenyos/server/internal/models"
+	"github.com/dengdeng-harmenyos/server/internal/service"
 )
 
 type DeviceHandler struct {
@@ -58,13 +58,13 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 	`, encryptedToken).Scan(&existingDevice.ID, &existingDevice.DeviceKey)
 
 	if err == nil {
-		// 设备已存在，更新信息
+		// 设备已存在，更新信息（包括公钥）
 		_, err = h.db.DB.Exec(`
 			UPDATE devices 
-			SET device_type = $1, os_version = $2, app_version = $3, 
+			SET device_type = $1, os_version = $2, app_version = $3, public_key = $4,
 			    is_active = true, last_active_at = NOW(), updated_at = NOW()
-			WHERE id = $4
-		`, req.DeviceType, req.OSVersion, req.AppVersion, existingDevice.ID)
+			WHERE id = $5
+		`, req.DeviceType, req.OSVersion, req.AppVersion, req.PublicKey, existingDevice.ID)
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -85,11 +85,11 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 	// 生成新的device_key
 	deviceKey := uuid.New().String()
 
-	// 插入新设备
+	// 插入新设备（包括公钥）
 	_, err = h.db.DB.Exec(`
-		INSERT INTO devices (device_key, push_token, device_type, os_version, app_version, is_active, last_active_at, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW(), NOW())
-	`, deviceKey, encryptedToken, req.DeviceType, req.OSVersion, req.AppVersion)
+		INSERT INTO devices (device_key, push_token, public_key, device_type, os_version, app_version, is_active, last_active_at, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, true, NOW(), NOW(), NOW())
+	`, deviceKey, encryptedToken, req.PublicKey, req.DeviceType, req.OSVersion, req.AppVersion)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -205,6 +205,17 @@ func (h *DeviceHandler) GetPushToken(deviceKey string) (string, error) {
 
 	// 解密token
 	return h.encryption.Decrypt(encryptedToken)
+}
+
+// GetPublicKey 内部方法：根据device_key获取public_key
+func (h *DeviceHandler) GetPublicKey(deviceKey string) (string, error) {
+	var publicKey string
+	err := h.db.DB.QueryRow(`
+		SELECT public_key FROM devices 
+		WHERE device_key = $1 AND is_active = true
+	`, deviceKey).Scan(&publicKey)
+
+	return publicKey, err
 }
 
 // GetPushTokens 批量获取push_token

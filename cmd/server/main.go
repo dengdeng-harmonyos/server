@@ -5,17 +5,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/yourusername/dangdangdang-push-server/internal/config"
-	"github.com/yourusername/dangdangdang-push-server/internal/database"
-	"github.com/yourusername/dangdangdang-push-server/internal/handler"
-	"github.com/yourusername/dangdangdang-push-server/internal/logger"
-	"github.com/yourusername/dangdangdang-push-server/internal/middleware"
+	"github.com/dengdeng-harmenyos/server/internal/config"
+	"github.com/dengdeng-harmenyos/server/internal/database"
+	"github.com/dengdeng-harmenyos/server/internal/handler"
+	"github.com/dengdeng-harmenyos/server/internal/logger"
+	"github.com/dengdeng-harmenyos/server/internal/middleware"
 )
 
 func main() {
 	// 初始化日志系统
 	logger.Init()
-	logger.Info("=== Dangdangdang Push Server Starting ===")
+	logger.Info("=== Dengdeng Push Server Starting ===")
 
 	// 加载环境变量
 	if err := godotenv.Load(); err != nil {
@@ -73,12 +73,16 @@ func main() {
 	}
 	logger.Info("✓ Device handler initialized")
 
-	pushHandler, err := handler.NewPushHandler(db, deviceHandler, cfg.HuaweiPush)
+	pushHandler, err := handler.NewPushHandler(db, deviceHandler, cfg.HuaweiPush, cfg.Server.ServerName)
 	if err != nil {
 		logger.Error("Failed to create push handler: %v", err)
 		log.Fatalf("Failed to create push handler: %v", err)
 	}
 	logger.Info("✓ Push handler initialized")
+
+	// 创建消息处理器
+	messageHandler := handler.NewMessageHandler(db.DB)
+	logger.Info("✓ Message handler initialized")
 
 	// API v1 路由
 	v1 := router.Group("/api/v1")
@@ -100,6 +104,13 @@ func main() {
 			push.GET("/batch", pushHandler.SendBatch)                  // 批量推送
 			push.GET("/statistics", pushHandler.GetStatistics)         // 查询统计数据
 		}
+
+		// 消息管理
+		messages := v1.Group("/messages")
+		{
+			messages.GET("/pending", messageHandler.GetPendingMessages) // 获取待接收消息
+			messages.POST("/confirm", messageHandler.ConfirmMessages)   // 确认消息已收到
+		}
 	}
 
 	// 健康检查
@@ -107,7 +118,7 @@ func main() {
 		c.JSON(200, gin.H{
 			"status":  "ok",
 			"version": "1.0.0",
-			"service": "Dangdangdang Push Server (Huawei Push Kit v3)",
+			"service": "Dengdeng Push Server (Huawei Push Kit v3)",
 		})
 	})
 

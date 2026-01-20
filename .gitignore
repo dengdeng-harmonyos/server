@@ -37,4 +37,11 @@ logs/
 *.db
 *.sqlite
 *.sqlite3
+
+# Sensitive configuration files
 config/agconnect-services.json
+config/private.json
+
+# Binary output
+bin/
+dist/

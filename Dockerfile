@@ -28,8 +28,11 @@ WORKDIR /app
 # 从构建阶段复制二进制文件
 COPY --from=builder /app/main .
 
-# 复制配置文件和初始化脚本
-COPY database/init.sql /docker-entrypoint-initdb.d/
+# 复制数据库文件和迁移脚本
+COPY database /app/database
+RUN chmod +x /app/database/migrate.sh
+
+# 复制配置文件
 COPY config /app/config
 
 # 创建supervisor配置目录
@@ -65,55 +68,78 @@ RUN cat > /start.sh <<'EOF'
 #!/bin/bash
 set -e
 
+echo "=========================================="
+echo "Starting Push Server Container"
+echo "=========================================="
+
 # 初始化PostgreSQL数据目录
 if [ ! -s "$PGDATA/PG_VERSION" ]; then
-  echo "Initializing PostgreSQL database..."
+  echo "[INIT] Initializing PostgreSQL database..."
   su-exec postgres initdb
   echo "host all all 0.0.0.0/0 md5" >> $PGDATA/pg_hba.conf
   echo "listen_addresses='*'" >> $PGDATA/postgresql.conf
+  echo "[INIT] PostgreSQL initialized"
 fi
 
 # 启动PostgreSQL
+echo "[START] Starting PostgreSQL..."
 su-exec postgres pg_ctl -D "$PGDATA" -w start
 
 # 等待PostgreSQL启动
+echo "[WAIT] Waiting for PostgreSQL to be ready..."
 until su-exec postgres pg_isready; do
-  echo "Waiting for PostgreSQL to be ready..."
-  sleep 2
+  echo "..."
+  sleep 1
 done
+echo "[READY] PostgreSQL is ready"
 
-# 创建数据库和用户
-su-exec postgres psql -c "CREATE DATABASE ${POSTGRES_DB:-push_server};" 2>/dev/null || true
-
-# 初始化数据库表结构
-if [ -f /docker-entrypoint-initdb.d/init.sql ]; then
-  su-exec postgres psql -d ${POSTGRES_DB:-push_server} -f /docker-entrypoint-initdb.d/init.sql
+# 执行数据库迁移
+echo "[MIGRATE] Running database migrations..."
+if [ -f /app/database/migrate.sh ]; then
+  /app/database/migrate.sh
+  if [ $? -eq 0 ]; then
+    echo "[MIGRATE] Database migration completed successfully"
+  else
+    echo "[ERROR] Database migration failed"
+    exit 1
+  fi
+else
+  echo "[WARN] Migration script not found, skipping..."
 fi
 
 # 启动应用服务
-echo "Starting push server application..."
+echo "[START] Starting push server application..."
+echo "=========================================="
 exec /app/main
 EOF
 
 RUN chmod +x /start.sh
 
-# 设置环境变量
+# 设置环境变量（内部数据库配置，用户无需修改）
 ENV POSTGRES_DB=push_server \
-    POSTGRES_USER=postgres \
-    POSTGRES_PASSWORD=postgres123 \
-    PGDATA=/var/lib/postgresql/data \
-    DB_HOST=localhost \
-    DB_PORT=5432 \
-    PORT=8080 \
-    TZ=Asia/Shanghai \
-    PUSH_TOKEN_ENCRYPTION_KEY=12345678901234567890123456789012
+  POSTGRES_USER=postgres \
+  POSTGRES_PASSWORD=postgres123 \
+  PGDATA=/var/lib/postgresql/data \
+  DB_HOST=localhost \
+  DB_PORT=5432 \
+  DB_USER=postgres \
+  DB_PASSWORD=postgres123 \
+  DB_NAME=push_server \
+  DB_SSLMODE=disable
+
+# 默认应用配置（可在docker-compose.yml中覆盖）
+ENV PORT=8080 \
+  GIN_MODE=release \
+  SERVER_NAME=噔噔推送服务 \
+  TZ=Asia/Shanghai \
+  HUAWEI_SERVICE_ACCOUNT_FILE=/app/config/private.json
 
 # 暴露端口
 EXPOSE 8080 5432
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD pg_isready -U postgres && wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+  CMD pg_isready -U postgres && wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # 使用启动脚本
 CMD ["/start.sh"]

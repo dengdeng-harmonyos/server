@@ -221,7 +221,7 @@ curl "http://localhost:8080/api/v1/push/batch?device_keys=abc123,def456,ghi789&t
 
 ### Postman 示例
 
-已包含在 `postman/Dangdangdang_Push_API.postman_collection.json` 文件中。
+已包含在 `postman/Dengdeng_Push_API.postman_collection.json` 文件中。
 
 ## 响应格式
 
