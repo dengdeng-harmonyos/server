@@ -124,7 +124,7 @@ curl -X DELETE "http://localhost:8080/api/v1/device/delete?device_key=abc123def4
 **请求示例**：
 
 ```bash
-curl "http://localhost:8080/api/push/notification?device_key=abc123&title=Hello&body=World&data=%7B%22key%22%3A%22value%22%7D"
+curl "http://localhost:8080/api/v1/push/notification?device_key=abc123&title=Hello&body=World&data=%7B%22key%22%3A%22value%22%7D"
 ```
 
 **响应示例**：
@@ -164,7 +164,7 @@ curl "http://localhost:8080/api/push/notification?device_key=abc123&title=Hello&
 **请求示例**：
 
 ```bash
-curl "http://localhost:8080/api/push/form?device_key=abc123&form_id=form_001&form_data=%7B%22temperature%22%3A%2225%C2%B0C%22%7D"
+curl "http://localhost:8080/api/v1/push/form?device_key=abc123&form_id=form_001&form_data=%7B%22temperature%22%3A%2225%C2%B0C%22%7D"
 ```
 
 **响应示例**：
@@ -195,7 +195,7 @@ curl "http://localhost:8080/api/push/form?device_key=abc123&form_id=form_001&for
 **请求示例**：
 
 ```bash
-curl "http://localhost:8080/api/push/background?device_key=abc123&data=%7B%22action%22%3A%22sync%22%2C%22timestamp%22%3A1234567890%7D"
+curl "http://localhost:8080/api/v1/push/background?device_key=abc123&data=%7B%22action%22%3A%22sync%22%2C%22timestamp%22%3A1234567890%7D"
 ```
 
 **响应示例**：
@@ -228,7 +228,7 @@ curl "http://localhost:8080/api/push/background?device_key=abc123&data=%7B%22act
 **请求示例**：
 
 ```bash
-curl "http://localhost:8080/api/push/batch?device_keys=abc123,def456,ghi789&title=群发消息&body=这是一条群发消息"
+curl "http://localhost:8080/api/v1/push/batch?device_keys=abc123,def456,ghi789&title=群发消息&body=这是一条群发消息"
 ```
 
 **响应示例**：
@@ -340,7 +340,7 @@ curl http://localhost:8080/health
 ```javascript
 // 注册设备
 async function registerDevice(pushToken) {
-  const response = await fetch('http://localhost:8080/api/device/register', {
+  const response = await fetch('http://localhost:8080/api/v1/device/register', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -363,7 +363,7 @@ async function sendNotification(deviceKey, title, body) {
     title: title,
     body: body
   });
-  const response = await fetch(`http://localhost:8080/api/push/notification?${params}`);
+  const response = await fetch(`http://localhost:8080/api/v1/push/notification?${params}`);
   return await response.json();
 }
 ```
@@ -377,7 +377,7 @@ import json
 # 注册设备
 def register_device(push_token):
     response = requests.post(
-        'http://localhost:8080/api/device/register',
+        'http://localhost:8080/api/v1/device/register',
         json={
             'push_token': push_token,
             'device_type': 'phone',
@@ -395,7 +395,7 @@ def send_notification(device_key, title, body):
         'body': body
     }
     response = requests.get(
-        'http://localhost:8080/api/push/notification',
+        'http://localhost:8080/api/v1/push/notification',
         params=params
     )
     return response.json()
@@ -438,7 +438,7 @@ func registerDevice(pushToken string) (string, error) {
     
     jsonData, _ := json.Marshal(req)
     resp, err := http.Post(
-        "http://localhost:8080/api/device/register",
+        "http://localhost:8080/api/v1/device/register",
         "application/json",
         bytes.NewBuffer(jsonData),
     )
@@ -460,7 +460,7 @@ func sendNotification(deviceKey, title, body string) error {
     params.Add("body", body)
     
     resp, err := http.Get(
-        "http://localhost:8080/api/push/notification?" + params.Encode(),
+        "http://localhost:8080/api/v1/push/notification?" + params.Encode(),
     )
     if err != nil {
         return err

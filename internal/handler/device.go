@@ -161,36 +161,6 @@ func (h *DeviceHandler) UpdateToken(c *gin.Context) {
 	})
 }
 
-// Deactivate 停用设备
-func (h *DeviceHandler) Deactivate(c *gin.Context) {
-	deviceKey := c.Query("device_key")
-	if deviceKey == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "device_key is required",
-		})
-		return
-	}
-
-	_, err := h.db.DB.Exec(`
-		UPDATE devices SET is_active = false, updated_at = NOW()
-		WHERE device_key = $1
-	`, deviceKey)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to deactivate device",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Device deactivated successfully",
-	})
-}
-
 // Delete 删除设备及其所有相关数据
 func (h *DeviceHandler) Delete(c *gin.Context) {
 	deviceKey := c.Query("device_key")
