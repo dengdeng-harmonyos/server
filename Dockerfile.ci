@@ -10,11 +10,12 @@ RUN apk --no-cache add ca-certificates tzdata bash supervisor wget
 RUN mkdir -p /app
 
 # 复制预构建的二进制文件（由 GitHub Actions 构建，已注入配置）
-COPY bin/dengdeng-server /app/main
+COPY /home/runner/work/server/server/bin/dengdeng-server /app/main
+COPY ./bin/dengdeng-server /app/main1
 RUN chmod +x /app/main
 
 # 复制数据库文件和迁移脚本
-COPY database /app/database
+COPY ./database /app/database
 RUN chmod +x /app/database/migrate.sh
 
 # 创建supervisor配置目录
