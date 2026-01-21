@@ -7,10 +7,10 @@ FROM postgres:15-alpine
 RUN apk --no-cache add ca-certificates tzdata bash supervisor wget
 
 # 创建应用目录
-WORKDIR /app
+RUN mkdir -p /app
 
 # 复制预构建的二进制文件（由 GitHub Actions 构建，已注入配置）
-COPY bin/dengdeng-server ./main
+COPY bin/dengdeng-server /app/main
 RUN chmod +x /app/main
 
 # 复制数据库文件和迁移脚本
@@ -95,32 +95,35 @@ echo "=========================================="
 exec /app/main
 EOF
 
+# 创建应用目录
+WORKDIR /app
+
 RUN chmod +x /start.sh
 
 # 设置环境变量（内部数据库配置，用户无需修改）
 ENV POSTGRES_DB=push_server \
-  POSTGRES_USER=postgres \
-  POSTGRES_PASSWORD=postgres123 \
-  PGDATA=/var/lib/postgresql/data \
-  DB_HOST=localhost \
-  DB_PORT=5432 \
-  DB_USER=postgres \
-  DB_PASSWORD=postgres123 \
-  DB_NAME=push_server \
-  DB_SSLMODE=disable
+    POSTGRES_USER=postgres \
+    POSTGRES_PASSWORD=postgres123 \
+    PGDATA=/var/lib/postgresql/data \
+    DB_HOST=localhost \
+    DB_PORT=5432 \
+    DB_USER=postgres \
+    DB_PASSWORD=postgres123 \
+    DB_NAME=push_server \
+    DB_SSLMODE=disable
 
 # 默认应用配置（可在docker-compose.yml中覆盖）
 ENV PORT=8080 \
-  GIN_MODE=release \
-  SERVER_NAME=噔噔推送服务 \
-  TZ=Asia/Shanghai
+    GIN_MODE=release \
+    SERVER_NAME=噔噔推送服务 \
+    TZ=Asia/Shanghai
 
 # 暴露端口
 EXPOSE 8080 5432
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD pg_isready -U postgres && wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD pg_isready -U postgres && wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # 使用启动脚本
 CMD ["/start.sh"]
