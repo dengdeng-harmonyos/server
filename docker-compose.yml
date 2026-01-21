@@ -6,24 +6,18 @@ services:
       dockerfile: Dockerfile
     container_name: push-server
     environment:
-      # 应用服务端口（可选，默认8080）
-      - PORT=8081
-      # 运行模式：debug/release（可选，默认release）
-      - GIN_MODE=release
       # 服务器名称（可选，用于标识消息来源）
       - SERVER_NAME=噔噔推送服务
-      # 安全配置（必需）
-      - PUSH_TOKEN_ENCRYPTION_KEY=${PUSH_TOKEN_ENCRYPTION_KEY:-your-32-character-encryption-key}
+      # Push Token加密密钥（必需，使用独立密钥）
+      - PUSH_TOKEN_ENCRYPTION_KEY=${PUSH_TOKEN_ENCRYPTION_KEY}
     ports:
-      - "8081:8081"   # Web服务端口
+      - "8080:8080"   # Web服务端口
     volumes:
       # 数据持久化
       - postgres_data:/var/lib/postgresql/data
-      # 配置文件（如使用嵌入配置可移除）
-      - ./config/agconnect-services.json:/app/config/agconnect-services.json:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres && wget --no-verbose --tries=1 --spider http://localhost:8081/health || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U postgres && wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       start_period: 40s

@@ -128,14 +128,20 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-// getEncryptionKey 获取加密密钥（优先使用嵌入的密钥）
+// getEncryptionKey 获取加密密钥（优先使用环境变量）
 func getEncryptionKey() string {
-	// 优先使用嵌入的密钥（来自编译时注入）
+	// 优先使用环境变量（运行时配置）
+	envKey := os.Getenv("PUSH_TOKEN_ENCRYPTION_KEY")
+	if envKey != "" {
+		return envKey
+	}
+
+	// 降级到嵌入的密钥（编译时注入）
 	embedded := GetEmbeddedEncryptionKey()
 	if embedded != "" {
 		return embedded
 	}
 
-	// 降级到环境变量
-	return getEnv("PUSH_TOKEN_ENCRYPTION_KEY", "")
+	// 最后返回空字符串
+	return ""
 }
