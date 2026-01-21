@@ -78,7 +78,8 @@ echo "[READY] PostgreSQL is ready"
 # 执行数据库迁移
 echo "[MIGRATE] Running database migrations..."
 if [ -f /app/database/migrate.sh ]; then
-  /app/database/migrate.sh
+  # 在子shell中执行迁移脚本,避免exit影响主脚本
+  (bash /app/database/migrate.sh)
   MIGRATE_EXIT_CODE=$?
   if [ $MIGRATE_EXIT_CODE -eq 0 ]; then
     echo "[MIGRATE] Database migration completed successfully"
