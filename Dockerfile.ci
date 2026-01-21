@@ -79,10 +79,11 @@ echo "[READY] PostgreSQL is ready"
 echo "[MIGRATE] Running database migrations..."
 if [ -f /app/database/migrate.sh ]; then
   /app/database/migrate.sh
-  if [ $? -eq 0 ]; then
+  MIGRATE_EXIT_CODE=$?
+  if [ $MIGRATE_EXIT_CODE -eq 0 ]; then
     echo "[MIGRATE] Database migration completed successfully"
   else
-    echo "[ERROR] Database migration failed"
+    echo "[ERROR] Database migration failed with exit code: $MIGRATE_EXIT_CODE"
     exit 1
   fi
 else

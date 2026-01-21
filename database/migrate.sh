@@ -157,7 +157,7 @@ run_migrations() {
 # 显示当前数据库版本
 show_version() {
     log_info "Current database schema version:"
-    PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "SELECT version, description, applied_at FROM schema_migrations ORDER BY version;"
+    PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "SELECT version, description, applied_at FROM schema_migrations ORDER BY version;" || true
 }
 
 # 主流程
@@ -181,7 +181,9 @@ main() {
     show_version
     
     log_info "Database migration completed successfully!"
+    return 0
 }
 
 # 执行主流程
 main
+exit $?
