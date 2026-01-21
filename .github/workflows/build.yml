@@ -41,8 +41,8 @@ jobs:
           AGCONNECT_ESCAPED=$(echo "$AGCONNECT_JSON" | sed 's/"/\\"/g' | tr -d '\n')
           PRIVATE_ESCAPED=$(echo "$PRIVATE_JSON" | sed 's/"/\\"/g' | tr -d '\n')
 
-          # 使用ldflags注入secrets到二进制文件
-          go build -ldflags "\
+          # 使用ldflags注入secrets到二进制文件（静态链接）
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "\
             -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedAgConnectJSON=$AGCONNECT_ESCAPED' \
             -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedPrivateJSON=$PRIVATE_ESCAPED' \
             -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedEncryptionKey=$ENCRYPTION_KEY' \
@@ -51,8 +51,9 @@ jobs:
             cmd/server/main.go
 
           chmod +x bin/dengdeng-server
-          # 验证二进制文件可以执行
-          ./bin/dengdeng-server --version || echo "Binary created successfully"
+          echo "Binary info:"
+          file bin/dengdeng-server
+          ls -lh bin/dengdeng-server
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
