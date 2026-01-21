@@ -1,0 +1,126 @@
+# Dockerfile for CI/CD pipeline
+# 使用 GitHub Actions 预构建的二进制文件（已注入配置）
+
+FROM postgres:15-alpine
+
+# 安装必要的工具
+RUN apk --no-cache add ca-certificates tzdata bash supervisor wget
+
+# 创建应用目录
+WORKDIR /app
+
+# 复制预构建的二进制文件（由 GitHub Actions 构建，已注入配置）
+COPY bin/dengdeng-server ./main
+RUN chmod +x /app/main
+
+# 复制数据库文件和迁移脚本
+COPY database /app/database
+RUN chmod +x /app/database/migrate.sh
+
+# 创建supervisor配置目录
+RUN mkdir -p /etc/supervisor.d
+
+# 创建supervisor配置文件
+RUN cat > /etc/supervisor.d/supervisord.conf <<'EOF'
+[supervisord]
+nodaemon=true
+
+[program:postgres]
+command=/bin/bash -c "pg_ctl -D $PGDATA -w start && tail -f /dev/null"
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+[program:push-server]
+command=/app/main
+autostart=true
+autorestart=true
+priority=10
+startsecs=30
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+EOF
+
+# 创建启动脚本
+RUN cat > /start.sh <<'EOF'
+#!/bin/bash
+set -e
+
+echo "=========================================="
+echo "Starting Push Server Container"
+echo "=========================================="
+
+# 初始化PostgreSQL数据目录
+if [ ! -s "$PGDATA/PG_VERSION" ]; then
+  echo "[INIT] Initializing PostgreSQL database..."
+  su-exec postgres initdb
+  echo "host all all 0.0.0.0/0 md5" >> $PGDATA/pg_hba.conf
+  echo "listen_addresses='*'" >> $PGDATA/postgresql.conf
+  echo "[INIT] PostgreSQL initialized"
+fi
+
+# 启动PostgreSQL
+echo "[START] Starting PostgreSQL..."
+su-exec postgres pg_ctl -D "$PGDATA" -w start
+
+# 等待PostgreSQL启动
+echo "[WAIT] Waiting for PostgreSQL to be ready..."
+until su-exec postgres pg_isready; do
+  echo "..."
+  sleep 1
+done
+echo "[READY] PostgreSQL is ready"
+
+# 执行数据库迁移
+echo "[MIGRATE] Running database migrations..."
+if [ -f /app/database/migrate.sh ]; then
+  /app/database/migrate.sh
+  if [ $? -eq 0 ]; then
+    echo "[MIGRATE] Database migration completed successfully"
+  else
+    echo "[ERROR] Database migration failed"
+    exit 1
+  fi
+else
+  echo "[WARN] Migration script not found, skipping..."
+fi
+
+# 启动应用服务
+echo "[START] Starting push server application..."
+echo "=========================================="
+exec /app/main
+EOF
+
+RUN chmod +x /start.sh
+
+# 设置环境变量（内部数据库配置，用户无需修改）
+ENV POSTGRES_DB=push_server \
+  POSTGRES_USER=postgres \
+  POSTGRES_PASSWORD=postgres123 \
+  PGDATA=/var/lib/postgresql/data \
+  DB_HOST=localhost \
+  DB_PORT=5432 \
+  DB_USER=postgres \
+  DB_PASSWORD=postgres123 \
+  DB_NAME=push_server \
+  DB_SSLMODE=disable
+
+# 默认应用配置（可在docker-compose.yml中覆盖）
+ENV PORT=8080 \
+  GIN_MODE=release \
+  SERVER_NAME=噔噔推送服务 \
+  TZ=Asia/Shanghai
+
+# 暴露端口
+EXPOSE 8080 5432
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD pg_isready -U postgres && wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+
+# 使用启动脚本
+CMD ["/start.sh"]
