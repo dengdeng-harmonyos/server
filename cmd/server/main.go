@@ -3,13 +3,12 @@ package main
 import (
 	"log"
 
-	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/dengdeng-harmenyos/server/internal/config"
 	"github.com/dengdeng-harmenyos/server/internal/database"
 	"github.com/dengdeng-harmenyos/server/internal/handler"
 	"github.com/dengdeng-harmenyos/server/internal/logger"
 	"github.com/dengdeng-harmenyos/server/internal/middleware"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -17,20 +16,12 @@ func main() {
 	logger.Init()
 	logger.Info("=== Dengdeng Push Server Starting ===")
 
-	// 加载环境变量
-	if err := godotenv.Load(); err != nil {
-		logger.Info("No .env file found, using environment variables")
-	} else {
-		logger.Info("Loaded .env file successfully")
-	}
-
-	// 加载配置
+	// 加载配置（使用嵌入的配置和环境变量）
 	cfg := config.Load()
 	logger.Info("Configuration loaded:")
 	logger.Info("  Server Port: %s", cfg.Server.Port)
 	logger.Info("  Server Mode: %s", cfg.Server.Mode)
 	logger.Info("  Database: %s:%s/%s", cfg.Database.Host, cfg.Database.Port, cfg.Database.DBName)
-	logger.Info("  Huawei Project ID: %s", cfg.HuaweiPush.ProjectID)
 	logger.Info("  Huawei Push API: %s", cfg.HuaweiPush.PushAPIURL)
 
 	// 初始化数据库
