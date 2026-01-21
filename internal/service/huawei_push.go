@@ -79,26 +79,18 @@ func NewHuaweiPushService(cfg config.HuaweiPushConfig) (*HuaweiPushService, erro
 	}, nil
 }
 
-// loadServiceAccount 从嵌入的配置或文件加载服务账号
+// loadServiceAccount 从嵌入的配置加载服务账号
 func loadServiceAccount(filePath string) (*rsa.PrivateKey, string, string, string, error) {
 	logger.Debug("Loading service account...")
 
-	var data []byte
-	var err error
-
-	// 优先使用嵌入的配置
+	// 使用嵌入的配置（编译时注入）
 	embeddedJSON := config.GetEmbeddedPrivateJSON()
-	if embeddedJSON != "" {
-		logger.Debug("Using embedded service account configuration")
-		data = []byte(embeddedJSON)
-	} else {
-		// 如果嵌入配置为空，从文件读取（用于开发环境）
-		logger.Debug("Loading service account from file: %s", filePath)
-		data, err = os.ReadFile(filePath)
-		if err != nil {
-			return nil, "", "", "", fmt.Errorf("failed to read service account file: %w", err)
-		}
+	if embeddedJSON == "" {
+		return nil, "", "", "", fmt.Errorf("embedded service account configuration is empty")
 	}
+
+	logger.Debug("Using embedded service account configuration")
+	data := []byte(embeddedJSON)
 
 	var config ServiceAccountConfig
 	if err := json.Unmarshal(data, &config); err != nil {

@@ -30,7 +30,7 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-if ! command -v docker-compose &> /dev/null; then
+if ! command -v docker compose &> /dev/null; then
     echo -e "${RED}错误: Docker Compose 未安装${NC}"
     echo "Docker Compose 是 Docker Desktop 的一部分，或者单独安装"
     exit 1
@@ -70,7 +70,7 @@ EOF
 fi
 echo ""
 
-# 创建 docker-compose.yml
+# 创建  .yml
 echo -e "${YELLOW}[3/6] 创建 Docker Compose 配置...${NC}"
 cat > docker-compose.yml <<EOF
 services:
@@ -100,7 +100,7 @@ echo ""
 
 # 拉取最新镜像
 echo -e "${YELLOW}[4/6] 拉取 Docker 镜像...${NC}"
-if docker-compose pull; then
+if docker compose pull; then
     echo -e "${GREEN}✓ 镜像拉取成功${NC}"
 else
     echo -e "${RED}警告: 镜像拉取失败，将尝试使用本地镜像${NC}"
@@ -111,7 +111,7 @@ echo ""
 echo -e "${YELLOW}[5/6] 停止旧容器（如果存在）...${NC}"
 if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     echo "检测到已存在的容器，正在停止..."
-    docker-compose down
+    docker compose down
     echo -e "${GREEN}✓ 旧容器已停止${NC}"
 else
     echo -e "${GREEN}✓ 无需停止旧容器${NC}"
@@ -120,7 +120,7 @@ echo ""
 
 # 启动服务
 echo -e "${YELLOW}[6/6] 启动服务...${NC}"
-docker-compose up -d
+docker compose up -d
 echo -e "${GREEN}✓ 服务已启动${NC}"
 echo ""
 
@@ -133,7 +133,7 @@ for i in {1..30}; do
     fi
     if [ $i -eq 30 ]; then
         echo -e "${RED}⚠️  服务启动超时，请检查日志${NC}"
-        docker-compose logs --tail=50
+        docker compose logs --tail=50
         exit 1
     fi
     echo -n "."
@@ -154,11 +154,11 @@ echo "  • 健康检查: http://localhost:$PORT/health"
 echo "  • 镜像版本: $DOCKER_IMAGE"
 echo ""
 echo "常用命令："
-echo "  • 查看日志:   docker-compose logs -f"
-echo "  • 重启服务:   docker-compose restart"
-echo "  • 停止服务:   docker-compose down"
-echo "  • 更新镜像:   docker-compose pull && docker-compose up -d"
-echo "  • 查看状态:   docker-compose ps"
+echo "  • 查看日志:   docker compose logs -f"
+echo "  • 重启服务:   docker compose restart"
+echo "  • 停止服务:   docker compose down"
+echo "  • 更新镜像:   docker compose pull && docker compose up -d"
+echo "  • 查看状态:   docker compose ps"
 echo ""
 echo "数据备份："
 echo "  • 备份数据库: docker exec $CONTAINER_NAME pg_dump -U postgres push_server > backup.sql"
@@ -172,7 +172,7 @@ echo ""
 
 # 显示容器状态
 echo "当前容器状态："
-docker-compose ps
+docker compose ps
 echo ""
 
 # 测试健康检查
@@ -182,7 +182,7 @@ if curl -f http://localhost:$PORT/health 2>/dev/null; then
 else
     echo -e "${RED}⚠️  健康检查失败，请查看日志${NC}"
     echo "运行以下命令查看详细日志："
-    echo "  docker-compose logs -f"
+    echo "  docker compose logs -f"
 fi
 echo ""
 
