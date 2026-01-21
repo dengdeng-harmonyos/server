@@ -138,13 +138,13 @@ run_migrations() {
         # 检查是否已应用
         if echo "$applied_migrations" | grep -q "^$version$"; then
             log_info "Migration $version already applied, skipping..."
-            ((applied_count++))
+            applied_count=$((applied_count + 1))
             continue
         fi
         
         # 应用迁移
         if apply_migration "$migration_file"; then
-            ((pending_count++))
+            pending_count=$((pending_count + 1))
         else
             log_error "Migration failed, stopping..."
             exit 1
