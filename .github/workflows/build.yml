@@ -126,6 +126,16 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            
+      - name: 检查文件是否存在
+        run: |
+          # 打印工作目录
+          pwd
+          # 列出 /home/runner/work/server/server 下的所有文件
+          ls -la /home/runner/work/server/server/
+          # 检查 bin 目录是否存在，以及里面的文件
+          ls -la /home/runner/work/server/server/bin/ || echo "bin目录不存在"
+
 
       - name: Build and push
         uses: docker/build-push-action@v5

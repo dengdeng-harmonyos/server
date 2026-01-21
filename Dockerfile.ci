@@ -11,7 +11,7 @@ RUN mkdir -p /app
 
 # 复制预构建的二进制文件（由 GitHub Actions 构建，已注入配置）
 COPY /home/runner/work/server/server/bin/dengdeng-server /app/main
-COPY ./bin/dengdeng-server /app/main1
+COPY bin/dengdeng-server /app/main
 RUN chmod +x /app/main
 
 # 复制数据库文件和迁移脚本
