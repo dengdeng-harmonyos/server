@@ -37,15 +37,16 @@ jobs:
           PRIVATE_JSON: ${{ secrets.PRIVATE_JSON }}
           ENCRYPTION_KEY: ${{ secrets.PUSH_TOKEN_ENCRYPTION_KEY }}
         run: |
-          # 转义JSON字符串用于ldflags
-          AGCONNECT_ESCAPED=$(echo "$AGCONNECT_JSON" | sed 's/"/\\"/g' | tr -d '\n')
-          PRIVATE_ESCAPED=$(echo "$PRIVATE_JSON" | sed 's/"/\\"/g' | tr -d '\n')
+          # Base64编码JSON字符串用于ldflags（避免转义问题）
+          AGCONNECT_BASE64=$(echo "$AGCONNECT_JSON" | base64 -w 0)
+          PRIVATE_BASE64=$(echo "$PRIVATE_JSON" | base64 -w 0)
+          ENCRYPTION_KEY_BASE64=$(echo "$ENCRYPTION_KEY" | base64 -w 0)
 
           # 使用ldflags注入secrets到二进制文件（静态链接）
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "\
-            -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedAgConnectJSON=$AGCONNECT_ESCAPED' \
-            -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedPrivateJSON=$PRIVATE_ESCAPED' \
-            -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedEncryptionKey=$ENCRYPTION_KEY' \
+            -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedAgConnectJSON=$AGCONNECT_BASE64' \
+            -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedPrivateJSON=$PRIVATE_BASE64' \
+            -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedEncryptionKey=$ENCRYPTION_KEY_BASE64' \
             -s -w" \
             -o bin/dengdeng-server \
             cmd/server/main.go
