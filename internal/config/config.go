@@ -48,48 +48,34 @@ type AgConnectServices struct {
 	} `json:"client"`
 }
 
-// loadProjectIDFromAgConnect 从嵌入的配置或文件读取项目ID
-func loadProjectIDFromAgConnect(filePath string) (string, error) {
-	// 优先使用嵌入的配置
+// loadProjectIDFromAgConnect 从嵌入的配置读取项目ID
+func loadProjectIDFromAgConnect() (string, error) {
+	// 使用嵌入的配置（编译时注入）
 	embeddedJSON := GetEmbeddedAgConnectJSON()
-	if embeddedJSON != "" {
-		var agConnect AgConnectServices
-		if err := json.Unmarshal([]byte(embeddedJSON), &agConnect); err == nil {
-			if agConnect.Client.ProjectID != "" {
-				return agConnect.Client.ProjectID, nil
-			}
-		}
-	}
-
-	// 如果嵌入配置失败，尝试从文件读取（用于开发环境）
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", fmt.Errorf("无法读取agconnect-services.json: %w", err)
+	if embeddedJSON == "" {
+		return "", fmt.Errorf("embedded agconnect configuration is empty")
 	}
 
 	var agConnect AgConnectServices
-	if err := json.Unmarshal(data, &agConnect); err != nil {
-		return "", fmt.Errorf("无法解析agconnect-services.json: %w", err)
+	if err := json.Unmarshal([]byte(embeddedJSON), &agConnect); err != nil {
+		return "", fmt.Errorf("failed to parse embedded agconnect configuration: %w", err)
 	}
 
 	if agConnect.Client.ProjectID == "" {
-		return "", fmt.Errorf("agconnect-services.json中未找到project_id")
+		return "", fmt.Errorf("project_id not found in embedded configuration")
 	}
 
 	return agConnect.Client.ProjectID, nil
 }
 
 func Load() *Config {
-	// 尝试从agconnect-services.json读取ProjectID
-	agConnectFile := getEnv("HUAWEI_SERVICE_ACCOUNT_FILE", "./config/agconnect-services.json")
+	// 尝试从嵌入配置读取ProjectID
 	projectID := getEnv("HUAWEI_PROJECT_ID", "")
 
-	// 如果环境变量未设置，从agconnect-services.json读取
+	// 如果环境变量未设置，从嵌入配置读取
 	if projectID == "" {
-		if pid, err := loadProjectIDFromAgConnect(agConnectFile); err == nil {
+		if pid, err := loadProjectIDFromAgConnect(); err == nil {
 			projectID = pid
-		} else {
-			fmt.Printf("警告: 无法从agconnect-services.json读取project_id: %v\n", err)
 		}
 	}
 
@@ -109,7 +95,7 @@ func Load() *Config {
 		},
 		HuaweiPush: HuaweiPushConfig{
 			ProjectID:          projectID,
-			ServiceAccountFile: agConnectFile,
+			ServiceAccountFile: "", // 不再使用文件，配置已嵌入
 			JWTExpiry:          3600,
 			PushAPIURL:         "https://push-api.cloud.huawei.com/v3",
 		},
