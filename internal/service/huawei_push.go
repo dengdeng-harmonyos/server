@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/dengdeng-harmenyos/server/internal/config"
 	"github.com/dengdeng-harmenyos/server/internal/logger"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // HuaweiPushService 华为Push Kit v3推送服务
