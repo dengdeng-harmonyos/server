@@ -92,8 +92,21 @@ jobs:
           ls -lah bin/
           file bin/*
           chmod +x bin/*
+          echo ""
+          echo "Current directory structure:"
+          ls -lah
+          pwd
 
       - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Debug build context
+        run: |
+          echo "Files that will be in build context:"
+          ls -lah
+          echo ""
+          echo "bin/ directory:"
+          ls -lah bin/
         uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
@@ -122,5 +135,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # 禁用 cache 来排除缓存问题
+          no-cache: true
