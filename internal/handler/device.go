@@ -191,6 +191,72 @@ func (h *DeviceHandler) Deactivate(c *gin.Context) {
 	})
 }
 
+// Delete 删除设备及其所有相关数据
+func (h *DeviceHandler) Delete(c *gin.Context) {
+	deviceKey := c.Query("device_key")
+	if deviceKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "device_key is required",
+		})
+		return
+	}
+
+	// 先获取设备的push_token用于调用华为删除接口
+	var encryptedToken string
+	err := h.db.DB.QueryRow(`
+		SELECT push_token FROM devices 
+		WHERE device_key = $1
+	`, deviceKey).Scan(&encryptedToken)
+
+	if err != nil {
+		// 设备不存在
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Device not found",
+		})
+		return
+	}
+
+	// 解密push_token
+	pushToken, err := h.encryption.Decrypt(encryptedToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to decrypt push token",
+		})
+		return
+	}
+
+	// 删除数据库记录（会自动级联删除相关的pending_messages）
+	result, err := h.db.DB.Exec(`
+		DELETE FROM devices WHERE device_key = $1
+	`, deviceKey)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to delete device",
+		})
+		return
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Device not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"message":    "Device deleted successfully",
+		"push_token": pushToken, // 返回push_token供上层调用华为删除接口
+	})
+}
+
 // GetPushToken 内部方法：根据device_key获取push_token
 func (h *DeviceHandler) GetPushToken(deviceKey string) (string, error) {
 	var encryptedToken string
