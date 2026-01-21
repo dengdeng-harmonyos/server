@@ -394,3 +394,39 @@ func (h *PushHandler) updateStatistics(pushType string, success bool) {
 		`, date, pushType)
 	}
 }
+
+// DeleteDevice 删除设备及其相关数据
+func (h *PushHandler) DeleteDevice(c *gin.Context) {
+	deviceKey := c.Query("device_key")
+	if deviceKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "device_key is required",
+		})
+		return
+	}
+
+	// 删除数据库记录（会自动级联删除pending_messages）
+	result, err := h.db.DB.Exec(`DELETE FROM devices WHERE device_key = $1`, deviceKey)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to delete device",
+		})
+		return
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Device not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Device deleted successfully",
+	})
+}

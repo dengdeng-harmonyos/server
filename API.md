@@ -14,7 +14,7 @@
 
 注册设备并获取 Device Key，用于后续的推送操作。
 
-**接口地址**：`POST /api/device/register`
+**接口地址**：`POST /api/v1/device/register`
 
 **请求头**：
 ```
@@ -34,7 +34,7 @@ Content-Type: application/json
 **请求示例**：
 
 ```bash
-curl -X POST http://localhost:8080/api/device/register \
+curl -X POST http://localhost:8080/api/v1/device/register \
   -H "Content-Type: application/json" \
   -d '{
     "push_token": "your_huawei_push_token",
@@ -65,11 +65,52 @@ curl -X POST http://localhost:8080/api/device/register \
 
 ---
 
-### 2. 推送通知消息
+### 2. 删除设备
+
+删除设备并清除相关的推送配置和待发送消息。
+
+**接口地址**：`DELETE /api/v1/device/delete`
+
+**请求参数**：
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| device_key | string | 是 | 设备密钥（注册时返回） |
+
+**请求示例**：
+
+```bash
+curl -X DELETE "http://localhost:8080/api/v1/device/delete?device_key=abc123def456..."
+```
+
+**响应示例**：
+
+```json
+{
+  "success": true,
+  "message": "Device deleted successfully"
+}
+```
+
+**响应字段说明**：
+
+| 字段名 | 类型 | 说明 |
+|--------|------|------|
+| success | boolean | 删除是否成功 |
+| message | string | 响应消息 |
+
+**说明**：
+- 会自动级联删除该设备的所有待发送消息（pending_messages）
+- 删除操作不可逆，请谨慎操作
+- 注意：由于华为 Push Kit 不提供 Token 删除接口，设备的 Push Token 在华为侧仍然有效，但本地已无法使用该 device_key 进行推送
+
+---
+
+### 3. 推送通知消息
 
 发送通知栏消息到指定设备。
 
-**接口地址**：`GET /api/push/notification`
+**接口地址**：`GET /api/v1/push/notification`
 
 **请求参数**：
 
@@ -106,11 +147,11 @@ curl "http://localhost:8080/api/push/notification?device_key=abc123&title=Hello&
 
 ---
 
-### 3. 卡片刷新
+### 4. 卡片刷新
 
 刷新 HarmonyOS 卡片(Form)内容。
 
-**接口地址**：`GET /api/push/form`
+**接口地址**：`GET /api/v1/push/form`
 
 **请求参数**：
 
@@ -138,11 +179,11 @@ curl "http://localhost:8080/api/push/form?device_key=abc123&form_id=form_001&for
 
 ---
 
-### 4. 后台推送
+### 5. 后台推送
 
 发送后台数据推送，应用在后台也能接收。
 
-**接口地址**：`GET /api/push/background`
+**接口地址**：`GET /api/v1/push/background`
 
 **请求参数**：
 
@@ -169,11 +210,11 @@ curl "http://localhost:8080/api/push/background?device_key=abc123&data=%7B%22act
 
 ---
 
-### 5. 批量推送
+### 6. 批量推送
 
 同时向多个设备推送通知消息。
 
-**接口地址**：`GET /api/push/batch`
+**接口地址**：`GET /api/v1/push/batch`
 
 **请求参数**：
 
@@ -230,7 +271,7 @@ curl "http://localhost:8080/api/push/batch?device_keys=abc123,def456,ghi789&titl
 
 ---
 
-### 6. 健康检查
+### 7. 健康检查
 
 检查服务是否正常运行。
 

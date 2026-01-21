@@ -84,6 +84,7 @@ func main() {
 			device.POST("/register", deviceHandler.Register)       // 注册设备，返回device_key
 			device.PUT("/update-token", deviceHandler.UpdateToken) // 更新Push Token
 			device.GET("/deactivate", deviceHandler.Deactivate)    // 停用设备
+			device.DELETE("/delete", pushHandler.DeleteDevice)     // 删除设备（同时删除华为Push服务的token）
 		}
 
 		// 推送消息（GET方式，方便直接调用）
