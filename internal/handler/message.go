@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/dengdeng-harmenyos/server/internal/service"
+	"github.com/gin-gonic/gin"
 )
 
 // MessageHandler 消息处理器
@@ -56,8 +56,8 @@ func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
 
 	// 查询未投递的消息
 	rows, err := h.db.Query(`
-		SELECT id, server_name, encrypted_aes_key, encrypted_content, iv, 
-		       EXTRACT(EPOCH FROM created_at) * 1000 as timestamp
+		SELECT id::TEXT, server_name, encrypted_aes_key, encrypted_content, iv, 
+		       EXTRACT(EPOCH FROM created_at)::BIGINT * 1000 as timestamp
 		FROM pending_messages
 		WHERE device_key = $1 
 		  AND delivered = false 
@@ -142,11 +142,11 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 		return
 	}
 
-	// 构建 SQL IN 子句
+	// 构建 SQL IN 子句 - 将字符串ID转换为整数数组
 	query := `
 		UPDATE pending_messages 
 		SET delivered = true, confirmed_at = $1
-		WHERE device_key = $2 AND id = ANY($3)
+		WHERE device_key = $2 AND id::TEXT = ANY($3)
 	`
 
 	result, err := h.db.Exec(query, time.Now(), deviceKey, req.MessageIDs)
