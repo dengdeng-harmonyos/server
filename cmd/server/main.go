@@ -89,14 +89,13 @@ func main() {
 		// 推送消息（GET方式，方便直接调用）
 		push := v1.Group("/push")
 		{
-			push.GET("/notification", pushHandler.SendNotification)    // 发送通知消息
-			push.GET("/form", pushHandler.SendFormUpdate)              // 发送卡片刷新消息
-			push.GET("/background", pushHandler.SendBackgroundMessage) // 发送后台消息
-			push.GET("/batch", pushHandler.SendBatch)                  // 批量推送
-			push.GET("/statistics", pushHandler.GetStatistics)         // 查询统计数据
+			push.GET("/notification", pushHandler.SendNotification) // 发送通知消息
+			// push.GET("/form", pushHandler.SendFormUpdate)              // 发送卡片刷新消息 - 暂时停用
+			// push.GET("/background", pushHandler.SendBackgroundMessage) // 发送后台消息 - 暂时停用
+			// push.GET("/batch", pushHandler.SendBatch)                  // 批量推送 - 暂时停用
+			push.GET("/statistics", pushHandler.GetStatistics) // 查询统计数据
 		}
-
-		// 消息管理
+		
 		messages := v1.Group("/messages")
 		{
 			messages.GET("/pending", messageHandler.GetPendingMessages) // 获取待接收消息
