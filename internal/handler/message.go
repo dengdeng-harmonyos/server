@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/dengdeng-harmenyos/server/internal/logger"
 	"github.com/dengdeng-harmenyos/server/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 )
 
 // MessageHandler 消息处理器
@@ -67,6 +69,7 @@ func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
 	`, deviceKey)
 
 	if err != nil {
+		logger.ErrorWithStack(err, "Failed to query pending messages for device: %s", deviceKey)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": "Failed to query messages: " + err.Error(),
@@ -127,6 +130,7 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 
 	var req ConfirmMessagesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		logger.ErrorWithStack(err, "Failed to bind confirm request from device: %s", deviceKey)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"message": "Invalid request: " + err.Error(),
@@ -142,15 +146,16 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 		return
 	}
 
-	// 构建 SQL IN 子句 - 将字符串ID转换为整数数组
+	// 构建 SQL IN 子句 - 使用 pq.Array 将字符串数组转换为 PostgreSQL 数组
 	query := `
 		UPDATE pending_messages 
 		SET delivered = true, confirmed_at = $1
 		WHERE device_key = $2 AND id::TEXT = ANY($3)
 	`
 
-	result, err := h.db.Exec(query, time.Now(), deviceKey, req.MessageIDs)
+	result, err := h.db.Exec(query, time.Now(), deviceKey, pq.Array(req.MessageIDs))
 	if err != nil {
+		logger.ErrorWithStack(err, "Failed to confirm messages for device: %s, messageIDs: %v", deviceKey, req.MessageIDs)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": "Failed to confirm messages: " + err.Error(),
@@ -159,6 +164,8 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 	}
 
 	rowsAffected, _ := result.RowsAffected()
+
+	logger.Info("Confirmed %d messages for device: %s", rowsAffected, deviceKey)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success":        true,
