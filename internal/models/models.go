@@ -39,9 +39,10 @@ type DeviceRegisterRequest struct {
 
 // DeviceRegisterResponse 设备注册响应
 type DeviceRegisterResponse struct {
-	Success   bool   `json:"success"`
-	DeviceKey string `json:"device_key"`
-	Message   string `json:"message"`
+	Success    bool   `json:"success"`
+	DeviceKey  string `json:"device_key"`
+	ServerName string `json:"server_name"` // 服务器名称
+	Message    string `json:"message"`
 }
 
 // PushNotificationRequest 通知消息推送请求（GET参数）

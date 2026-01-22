@@ -9,6 +9,7 @@ import (
 
 	"github.com/dengdeng-harmenyos/server/internal/config"
 	"github.com/dengdeng-harmenyos/server/internal/database"
+	"github.com/dengdeng-harmenyos/server/internal/logger"
 	"github.com/dengdeng-harmenyos/server/internal/models"
 	"github.com/dengdeng-harmenyos/server/internal/service"
 	"github.com/gin-gonic/gin"
@@ -97,6 +98,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	}
 	encryptedMsg, err := h.cryptoService.EncryptMessage(publicKey, messageContent)
 	if err != nil {
+		logger.ErrorWithStack(err, "Failed to encrypt message for device: %s", req.DeviceKey)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "Failed to encrypt message: " + err.Error(),
@@ -111,6 +113,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	}
 	err = h.pushService.SendNotification(pushToken, req.Title, req.Body, notificationData)
 	if err != nil {
+		logger.ErrorWithStack(err, "Failed to send push notification for device: %s", req.DeviceKey)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "Failed to send notification: " + err.Error(),
@@ -121,12 +124,15 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	// 3. 保存加密消息到数据库
 	err = h.messageHandler.SaveEncryptedMessage(req.DeviceKey, h.serverName, encryptedMsg)
 	if err != nil {
+		logger.ErrorWithStack(err, "Failed to save encrypted message for device: %s", req.DeviceKey)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "Failed to save message: " + err.Error(),
 		})
 		return
 	}
+
+	logger.Info("Successfully sent notification to device: %s, title: %s", req.DeviceKey, req.Title)
 
 	// 更新统计
 	h.updateStatistics("notification", true)
