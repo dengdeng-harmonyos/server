@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/dengdeng-harmenyos/server/internal/models"
 	"github.com/dengdeng-harmenyos/server/internal/service"
 )
 
@@ -67,10 +68,7 @@ func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
 	`, deviceKey)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to query messages: " + err.Error(),
-		})
+		RespondError(c, http.StatusInternalServerError, models.SystemError, "Failed to query messages: "+err.Error())
 		return
 	}
 	defer rows.Close()
@@ -94,8 +92,7 @@ func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
 		`, deviceKey)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success":  true,
+	RespondSuccess(c, http.StatusOK, gin.H{
 		"messages": messages,
 		"count":    len(messages),
 	})
@@ -118,25 +115,18 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 	}
 
 	if deviceKey == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"message": "Missing device key",
-		})
+		RespondError(c, http.StatusUnauthorized, models.Unauthorized, "Missing device key")
 		return
 	}
 
 	var req ConfirmMessagesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "Invalid request: " + err.Error(),
-		})
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid request: "+err.Error())
 		return
 	}
 
 	if len(req.MessageIDs) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"success":        true,
+		RespondSuccess(c, http.StatusOK, gin.H{
 			"confirmedCount": 0,
 		})
 		return
@@ -151,17 +141,13 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 
 	result, err := h.db.Exec(query, time.Now(), deviceKey, req.MessageIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to confirm messages: " + err.Error(),
-		})
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to confirm messages: "+err.Error())
 		return
 	}
 
 	rowsAffected, _ := result.RowsAffected()
 
-	c.JSON(http.StatusOK, gin.H{
-		"success":        true,
+	RespondSuccess(c, http.StatusOK, gin.H{
 		"confirmedCount": rowsAffected,
 	})
 }
