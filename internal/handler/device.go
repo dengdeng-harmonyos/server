@@ -50,8 +50,8 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 	// 查询是否已存在该push_token
 	var existingDevice models.Device
 	err = h.db.DB.QueryRow(`
-		SELECT id, device_key FROM devices WHERE push_token = $1
-	`, encryptedToken).Scan(&existingDevice.ID, &existingDevice.DeviceKey)
+		SELECT id, device_id FROM devices WHERE push_token = $1
+	`, encryptedToken).Scan(&existingDevice.ID, &existingDevice.DeviceId)
 
 	if err == nil {
 		// 设备已存在，更新信息（包括公钥）
@@ -68,21 +68,21 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 		}
 
 		RespondSuccess(c, http.StatusOK, gin.H{
-			"device_key": existingDevice.DeviceKey,
+			"device_id": existingDevice.DeviceId,
 			"server_name": h.serverName,
 			"message":    "Device updated successfully",
 		})
 		return
 	}
 
-	// 生成新的device_key
-	deviceKey := uuid.New().String()
+	// 生成新的device_id
+	deviceId := uuid.New().String()
 
 	// 插入新设备（包括公钥）
 	_, err = h.db.DB.Exec(`
-		INSERT INTO devices (device_key, push_token, public_key, device_type, os_version, app_version, is_active, last_active_at, created_at, updated_at)
+		INSERT INTO devices (device_id, push_token, public_key, device_type, os_version, app_version, is_active, last_active_at, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, true, NOW(), NOW(), NOW())
-	`, deviceKey, encryptedToken, req.PublicKey, req.DeviceType, req.OSVersion, req.AppVersion)
+	`, deviceId, encryptedToken, req.PublicKey, req.DeviceType, req.OSVersion, req.AppVersion)
 
 	if err != nil {
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to register device")
@@ -90,7 +90,7 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 	}
 
 	RespondSuccess(c, http.StatusOK, gin.H{
-		"device_key": deviceKey,
+		"device_id": deviceId,
 		"server_name": h.serverName,
 		"message":    "Device registered successfully",
 	})
@@ -99,7 +99,7 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 // UpdateToken 更新Push Token
 func (h *DeviceHandler) UpdateToken(c *gin.Context) {
 	var req struct {
-		DeviceKey    string `json:"device_key" binding:"required"`
+		DeviceId     string `json:"device_id" binding:"required"`
 		NewPushToken string `json:"new_push_token" binding:"required"`
 	}
 
@@ -119,8 +119,8 @@ func (h *DeviceHandler) UpdateToken(c *gin.Context) {
 	result, err := h.db.DB.Exec(`
 		UPDATE devices 
 		SET push_token = $1, last_active_at = NOW(), updated_at = NOW()
-		WHERE device_key = $2 AND is_active = true
-	`, encryptedToken, req.DeviceKey)
+		WHERE device_id = $2 AND is_active = true
+	`, encryptedToken, req.DeviceId)
 
 	if err != nil {
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to update token")
@@ -140,9 +140,9 @@ func (h *DeviceHandler) UpdateToken(c *gin.Context) {
 
 // Delete 删除设备及其所有相关数据
 func (h *DeviceHandler) Delete(c *gin.Context) {
-	deviceKey := c.Query("device_key")
-	if deviceKey == "" {
-		RespondError(c, http.StatusBadRequest, models.InvalidParams, "device_key is required")
+	deviceId := c.Query("device_id")
+	if deviceId == "" {
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "device_id is required")
 		return
 	}
 
@@ -150,8 +150,8 @@ func (h *DeviceHandler) Delete(c *gin.Context) {
 	var encryptedToken string
 	err := h.db.DB.QueryRow(`
 		SELECT push_token FROM devices 
-		WHERE device_key = $1
-	`, deviceKey).Scan(&encryptedToken)
+		WHERE device_id = $1
+	`, deviceId).Scan(&encryptedToken)
 
 	if err != nil {
 		// 设备不存在
@@ -168,8 +168,8 @@ func (h *DeviceHandler) Delete(c *gin.Context) {
 
 	// 先删除pending_messages中的相关消息
 	_, err = h.db.DB.Exec(`
-		DELETE FROM pending_messages WHERE device_key = $1
-	`, deviceKey)
+		DELETE FROM pending_messages WHERE device_id = $1
+	`, deviceId)
 
 	if err != nil {
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to delete pending messages")
@@ -178,8 +178,8 @@ func (h *DeviceHandler) Delete(c *gin.Context) {
 
 	// 删除设备记录
 	result, err := h.db.DB.Exec(`
-		DELETE FROM devices WHERE device_key = $1
-	`, deviceKey)
+		DELETE FROM devices WHERE device_id = $1
+	`, deviceId)
 
 	if err != nil {
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to delete device")
@@ -198,13 +198,13 @@ func (h *DeviceHandler) Delete(c *gin.Context) {
 	})
 }
 
-// GetPushToken 内部方法：根据device_key获取push_token
-func (h *DeviceHandler) GetPushToken(deviceKey string) (string, error) {
+// GetPushToken 内部方法：根据device_id获取push_token
+func (h *DeviceHandler) GetPushToken(deviceId string) (string, error) {
 	var encryptedToken string
 	err := h.db.DB.QueryRow(`
 		SELECT push_token FROM devices 
-		WHERE device_key = $1 AND is_active = true
-	`, deviceKey).Scan(&encryptedToken)
+		WHERE device_id = $1 AND is_active = true
+	`, deviceId).Scan(&encryptedToken)
 
 	if err != nil {
 		return "", err
@@ -214,25 +214,25 @@ func (h *DeviceHandler) GetPushToken(deviceKey string) (string, error) {
 	return h.encryption.Decrypt(encryptedToken)
 }
 
-// GetPublicKey 内部方法：根据device_key获取public_key
-func (h *DeviceHandler) GetPublicKey(deviceKey string) (string, error) {
+// GetPublicKey 内部方法：根据device_id获取public_key
+func (h *DeviceHandler) GetPublicKey(deviceId string) (string, error) {
 	var publicKey string
 	err := h.db.DB.QueryRow(`
 		SELECT public_key FROM devices 
-		WHERE device_key = $1 AND is_active = true
-	`, deviceKey).Scan(&publicKey)
+		WHERE device_id = $1 AND is_active = true
+	`, deviceId).Scan(&publicKey)
 
 	return publicKey, err
 }
 
 // GetPushTokens 批量获取push_token
-func (h *DeviceHandler) GetPushTokens(deviceKeys []string) ([]string, error) {
-	if len(deviceKeys) == 0 {
+func (h *DeviceHandler) GetPushTokens(deviceIds []string) ([]string, error) {
+	if len(deviceIds) == 0 {
 		return []string{}, nil
 	}
 
-	tokens := make([]string, 0, len(deviceKeys))
-	for _, key := range deviceKeys {
+	tokens := make([]string, 0, len(deviceIds))
+	for _, key := range deviceIds {
 		token, err := h.GetPushToken(key)
 		if err == nil {
 			tokens = append(tokens, token)

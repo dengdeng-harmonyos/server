@@ -5,7 +5,7 @@ import "time"
 // Device 设备信息（简化版）
 type Device struct {
 	ID           int       `json:"id"`
-	DeviceKey    string    `json:"device_key"`  // 服务端生成的随机ID（对外使用）
+	DeviceId     string    `json:"device_id"`  // 服务端生成的随机ID（对外使用）
 	PushToken    string    `json:"-"`           // 华为Push Token（加密存储，不对外暴露）
 	PublicKey    string    `json:"-"`           // RSA公钥(PEM格式，不对外暴露)
 	DeviceType   string    `json:"device_type"` // phone/tablet/watch
@@ -40,14 +40,14 @@ type DeviceRegisterRequest struct {
 // DeviceRegisterResponse 设备注册响应
 type DeviceRegisterResponse struct {
 	Success    bool   `json:"success"`
-	DeviceKey  string `json:"device_key"`
+	DeviceId   string `json:"device_id"`
 	ServerName string `json:"server_name"` // 服务器名称
 	Message    string `json:"message"`
 }
 
 // PushNotificationRequest 通知消息推送请求（GET参数）
 type PushNotificationRequest struct {
-	DeviceKey string `form:"device_key" binding:"required"`
+	DeviceId  string `form:"device_id" binding:"required"`
 	Title     string `form:"title" binding:"required"`
 	Body      string `form:"body" binding:"required"`
 	Data      string `form:"data"` // JSON字符串
@@ -55,20 +55,20 @@ type PushNotificationRequest struct {
 
 // FormUpdateRequest 卡片刷新请求（GET参数）
 type FormUpdateRequest struct {
-	DeviceKey string `form:"device_key" binding:"required"`
+	DeviceId  string `form:"device_id" binding:"required"`
 	FormID    string `form:"form_id" binding:"required"`
 	FormData  string `form:"form_data" binding:"required"` // JSON字符串
 }
 
 // BackgroundPushRequest 后台推送请求（GET参数）
 type BackgroundPushRequest struct {
-	DeviceKey string `form:"device_key" binding:"required"`
+	DeviceId  string `form:"device_id" binding:"required"`
 	Data      string `form:"data" binding:"required"` // JSON字符串
 }
 
 // BatchPushRequest 批量推送请求（GET参数）
 type BatchPushRequest struct {
-	DeviceKeys string `form:"device_keys" binding:"required"` // 逗号分隔的device_key列表
+	DeviceIds  string `form:"device_ids" binding:"required"` // 逗号分隔的device_id列表
 	Title      string `form:"title" binding:"required"`
 	Body       string `form:"body" binding:"required"`
 	Data       string `form:"data"` // JSON字符串

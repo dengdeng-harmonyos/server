@@ -153,17 +153,17 @@ COMMENT ON COLUMN devices.email IS '用户邮箱地址';
 
 CREATE TABLE IF NOT EXISTS notifications (
     id SERIAL PRIMARY KEY,
-    device_key VARCHAR(64) NOT NULL,
+    device_id VARCHAR(64) NOT NULL,
     title VARCHAR(255) NOT NULL,
     body TEXT,
     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(20) DEFAULT 'pending',
     
-    CONSTRAINT fk_notification_device FOREIGN KEY (device_key) 
-        REFERENCES devices(device_key) ON DELETE CASCADE
+    CONSTRAINT fk_notification_device FOREIGN KEY (device_id) 
+        REFERENCES devices(device_id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_notifications_device_key ON notifications(device_key);
+CREATE INDEX IF NOT EXISTS idx_notifications_device_id ON notifications(device_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_sent_at ON notifications(sent_at);
 CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications(status);
 ```
