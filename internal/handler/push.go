@@ -45,10 +45,7 @@ func NewPushHandler(db *database.Database, deviceHandler *DeviceHandler, cfg con
 func (h *PushHandler) SendNotification(c *gin.Context) {
 	var req models.PushNotificationRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid request: " + err.Error(),
-		})
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid request: "+err.Error())
 		return
 	}
 
@@ -66,10 +63,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	var data map[string]interface{}
 	if req.Data != "" {
 		if err := json.Unmarshal([]byte(req.Data), &data); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"error":   "Invalid data format",
-			})
+			RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid data format")
 			return
 		}
 	} else {
@@ -83,10 +77,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	publicKey, err := h.deviceHandler.GetPublicKey(req.DeviceKey)
 	if err != nil || publicKey == "" {
 		// 必须有公钥才能处理推送
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Device public key not found, please register device first",
-		})
+		RespondError(c, http.StatusBadRequest, models.OperationFailed, "Device public key not found, please register device first")
 		return
 	}
 
@@ -99,10 +90,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	encryptedMsg, err := h.cryptoService.EncryptMessage(publicKey, messageContent)
 	if err != nil {
 		logger.ErrorWithStack(err, "Failed to encrypt message for device: %s", req.DeviceKey)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to encrypt message: " + err.Error(),
-		})
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to send notification: "+err.Error())
 		return
 	}
 
@@ -114,10 +102,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	err = h.pushService.SendNotification(pushToken, req.Title, req.Body, notificationData)
 	if err != nil {
 		logger.ErrorWithStack(err, "Failed to send push notification for device: %s", req.DeviceKey)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to send notification: " + err.Error(),
-		})
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to send notification: "+err.Error())
 		return
 	}
 
@@ -125,10 +110,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	err = h.messageHandler.SaveEncryptedMessage(req.DeviceKey, h.serverName, encryptedMsg)
 	if err != nil {
 		logger.ErrorWithStack(err, "Failed to save encrypted message for device: %s", req.DeviceKey)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to save message: " + err.Error(),
-		})
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to save message: "+err.Error())
 		return
 	}
 
@@ -137,8 +119,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	// 更新统计
 	h.updateStatistics("notification", true)
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
+	RespondSuccess(c, http.StatusOK, gin.H{
 		"message": "Notification sent successfully",
 	})
 }
@@ -148,58 +129,42 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 func (h *PushHandler) SendFormUpdate(c *gin.Context) {
 	var req models.FormUpdateRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid request: " + err.Error(),
-		})
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid request: "+err.Error())
 		return
 	}
 
 	// 根据device_key获取push_token
 	pushToken, err := h.deviceHandler.GetPushToken(req.DeviceKey)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Device not found",
-		})
+		RespondError(c, http.StatusNotFound, models.DataNotFound, "Device not found")
 		return
 	}
 
 	// 解析表单数据
 	var formData map[string]interface{}
 	if err := json.Unmarshal([]byte(req.FormData), &formData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid form_data format",
-		})
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid form_data format")
 		return
 	}
 
 	// 将formID从string转换为int64
 	formID := int64(0)
 	if _, err := fmt.Sscanf(req.FormID, "%d", &formID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid form_id format, must be a number",
-		})
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid form_id format, must be a number")
 		return
 	}
 
 	// 发送推送（使用简化版本）
 	err = h.pushService.SendFormUpdateSimple(pushToken, formID, formData)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to send form update: " + err.Error(),
-		})
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to send form update: "+err.Error())
 		return
 	}
 
 	// 更新统计
 	h.updateStatistics("form", true)
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
+	RespondSuccess(c, http.StatusOK, gin.H{
 		"message": "Form update sent successfully",
 	})
 }
@@ -209,38 +174,28 @@ func (h *PushHandler) SendFormUpdate(c *gin.Context) {
 func (h *PushHandler) SendBackgroundMessage(c *gin.Context) {
 	var req models.BackgroundPushRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid request: " + err.Error(),
-		})
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid request: "+err.Error())
 		return
 	}
 
 	// 根据device_key获取push_token
 	pushToken, err := h.deviceHandler.GetPushToken(req.DeviceKey)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Device not found",
-		})
+		RespondError(c, http.StatusNotFound, models.DataNotFound, "Device not found")
 		return
 	}
 
 	// 发送推送
 	err = h.pushService.SendBackgroundMessage(pushToken, req.Data)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to send background message: " + err.Error(),
-		})
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to send background message: "+err.Error())
 		return
 	}
 
 	// 更新统计
 	h.updateStatistics("background", true)
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
+	RespondSuccess(c, http.StatusOK, gin.H{
 		"message": "Background message sent successfully",
 	})
 }
@@ -250,46 +205,31 @@ func (h *PushHandler) SendBackgroundMessage(c *gin.Context) {
 func (h *PushHandler) SendBatch(c *gin.Context) {
 	var req models.BatchPushRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid request: " + err.Error(),
-		})
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid request: "+err.Error())
 		return
 	}
 
 	// 解析device_keys（逗号分隔）
 	deviceKeys := strings.Split(req.DeviceKeys, ",")
 	if len(deviceKeys) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "No device keys provided",
-		})
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "No device keys provided")
 		return
 	}
 
 	if len(deviceKeys) > 1000 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Too many devices (max 1000)",
-		})
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Too many devices (max 1000)")
 		return
 	}
 
 	// 批量获取push_token
 	pushTokens, err := h.deviceHandler.GetPushTokens(deviceKeys)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to get device tokens",
-		})
+		RespondError(c, http.StatusInternalServerError, models.SystemError, "Failed to get device tokens")
 		return
 	}
 
 	if len(pushTokens) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "No valid devices found",
-		})
+		RespondError(c, http.StatusNotFound, models.DataNotFound, "No valid devices found")
 		return
 	}
 
@@ -297,10 +237,7 @@ func (h *PushHandler) SendBatch(c *gin.Context) {
 	var data map[string]interface{}
 	if req.Data != "" {
 		if err := json.Unmarshal([]byte(req.Data), &data); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"error":   "Invalid data format",
-			})
+			RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid data format")
 			return
 		}
 	}
@@ -308,10 +245,7 @@ func (h *PushHandler) SendBatch(c *gin.Context) {
 	// 批量发送推送
 	err = h.pushService.SendBatchNotification(pushTokens, req.Title, req.Body, data)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to send batch push: " + err.Error(),
-		})
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to send batch push: "+err.Error())
 		return
 	}
 
@@ -320,8 +254,7 @@ func (h *PushHandler) SendBatch(c *gin.Context) {
 		h.updateStatistics("notification", true)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success":      true,
+	RespondSuccess(c, http.StatusOK, gin.H{
 		"message":      "Batch notification sent successfully",
 		"total_sent":   len(pushTokens),
 		"total_failed": len(deviceKeys) - len(pushTokens),
@@ -343,10 +276,7 @@ func (h *PushHandler) GetStatistics(c *gin.Context) {
 	`, dateStr)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to get statistics",
-		})
+		RespondError(c, http.StatusInternalServerError, models.SystemError, "Failed to get statistics")
 		return
 	}
 	defer rows.Close()
@@ -365,10 +295,9 @@ func (h *PushHandler) GetStatistics(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"date":    dateStr,
-		"stats":   stats,
+	RespondSuccess(c, http.StatusOK, gin.H{
+		"date":  dateStr,
+		"stats": stats,
 	})
 }
 
@@ -395,40 +324,4 @@ func (h *PushHandler) updateStatistics(pushType string, success bool) {
 				failed_count = push_statistics.failed_count + 1
 		`, date, pushType)
 	}
-}
-
-// DeleteDevice 删除设备及其相关数据
-func (h *PushHandler) DeleteDevice(c *gin.Context) {
-	deviceKey := c.Query("device_key")
-	if deviceKey == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "device_key is required",
-		})
-		return
-	}
-
-	// 删除数据库记录（会自动级联删除pending_messages）
-	result, err := h.db.DB.Exec(`DELETE FROM devices WHERE device_key = $1`, deviceKey)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to delete device",
-		})
-		return
-	}
-
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Device not found",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Device deleted successfully",
-	})
 }

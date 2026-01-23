@@ -73,3 +73,43 @@ type BatchPushRequest struct {
 	Body       string `form:"body" binding:"required"`
 	Data       string `form:"data"` // JSON字符串
 }
+
+// UnifiedApiResponse 统一API响应格式
+type UnifiedApiResponse struct {
+	Code int         `json:"code"`
+	Msg  string      `json:"msg"`
+	Data interface{} `json:"data,omitempty"`
+}
+
+// ErrorCode 错误码定义
+type ErrorCode struct{}
+
+var ErrorCodes = ErrorCode{}
+
+// 系统错误 1xxx
+const (
+	SystemError   = 1000 // 系统错误
+	InvalidParams = 1001 // 参数无效
+)
+
+// 认证错误 2xxx
+const (
+	Unauthorized       = 2001 // 未授权
+	InvalidSignature   = 2002 // 签名无效
+	SignatureExpired   = 2003 // 签名过期
+	InvalidAppID       = 2004 // 无效的AppID
+	VersionTooOld      = 2005 // 版本过旧
+)
+
+// 业务错误 3xxx
+const (
+	BusinessError     = 3001 // 业务错误
+	ResourceNotFound  = 3002 // 资源未找到
+	OperationFailed   = 3003 // 操作失败
+)
+
+// 数据错误 4xxx
+const (
+	DataNotFound      = 4001 // 数据未找到
+	DataAlreadyExists = 4002 // 数据已存在
+)
