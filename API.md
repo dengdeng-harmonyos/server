@@ -1,404 +1,870 @@
-# API 接口文档
-
-本文档详细描述了噔噔推送服务的所有 API 接口。
+# DengDeng Push Service API 文档
 
 ## 基础信息
 
-- **基础URL**: `http://your-server:8080`
-- **内容类型**: `application/json` (POST 请求)
+- **基础URL**: `http://your-domain.com`
+- **内容类型**: `application/json`
 - **字符编码**: `UTF-8`
+- **API版本**: `v1`
 
-## 接口列表
+## 统一响应格式
+
+所有API接口都遵循统一的响应格式：
+
+```json
+{
+  "code": 0,
+  "msg": "success",
+  "data": {}
+}
+```
+
+### 响应字段说明
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| code | int | 响应码，0表示成功，非0表示错误 |
+| msg | string | 响应消息，成功时为"success"，失败时为错误描述 |
+| data | object/array/null | 响应数据，根据接口不同返回不同类型的数据 |
+
+## 错误码定义
+
+### 系统错误 (1xxx)
+
+| 错误码 | 说明 |
+|-------|------|
+| 1001 | 系统内部错误 |
+| 1002 | 数据库错误 |
+| 1003 | 网络错误 |
+| 1004 | 服务不可用 |
+
+### 认证错误 (2xxx)
+
+| 错误码 | 说明 |
+|-------|------|
+| 2001 | 未授权 |
+| 2002 | 认证失败 |
+| 2003 | Token无效 |
+| 2004 | Token过期 |
+
+### 业务错误 (3xxx)
+
+| 错误码 | 说明 |
+|-------|------|
+| 3001 | 设备未注册 |
+| 3002 | 设备已存在 |
+| 3003 | 推送失败 |
+| 3004 | 消息不存在 |
+| 3005 | 操作失败 |
+
+### 数据错误 (4xxx)
+
+| 错误码 | 说明 |
+|-------|------|
+| 4001 | 参数错误 |
+| 4002 | 参数缺失 |
+| 4003 | 参数格式错误 |
+| 4004 | 数据不存在 |
+
+## HTTP 状态码说明
+
+| 状态码 | 说明 |
+|-------|------|
+| 200 | 请求成功 |
+| 400 | 请求参数错误 |
+| 401 | 未授权 |
+| 404 | 资源不存在 |
+| 500 | 服务器内部错误 |
+
+---
+
+## API 接口详细文档
 
 ### 1. 设备注册
 
-注册设备并获取 Device Key，用于后续的推送操作。
-
-**接口地址**：`POST /api/v1/device/register`
-
-**请求头**：
+#### 接口地址
 ```
-Content-Type: application/json
+POST /api/v1/device/register
 ```
 
-**请求参数**：
+#### 请求参数
 
 | 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| push_token | string | 是 | 华为推送服务返回的 Push Token |
-| public_key | string | 否 | RSA 公钥(PEM格式)，用于客户端消息加密 |
-| device_type | string | 否 | 设备类型：phone/tablet/watch |
-| os_version | string | 否 | HarmonyOS 版本号 |
-| app_version | string | 否 | 应用版本号 |
+|-------|------|------|------|
+| device_id | string | 是 | 设备唯一标识符 |
+| push_token | string | 是 | 华为推送Token |
+| device_type | string | 否 | 设备类型（如：HarmonyOS） |
+| os_version | string | 否 | 操作系统版本 |
+| app_version | string | 否 | 应用版本 |
 
-**请求示例**：
+#### 请求示例
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/device/register \
+curl -X POST http://your-domain.com/api/v1/device/register \
   -H "Content-Type: application/json" \
   -d '{
-    "push_token": "your_huawei_push_token",
-    "public_key": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
-    "device_type": "phone",
-    "os_version": "5.0.0",
+    "device_id": "device123",
+    "push_token": "token456",
+    "device_type": "HarmonyOS",
+    "os_version": "4.0",
     "app_version": "1.0.0"
   }'
 ```
 
-**响应示例**：
+#### 成功响应示例
 
 ```json
 {
-  "success": true,
-  "device_key": "abc123def456...",
-  "message": "Device registered successfully"
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "device_id": "device123",
+    "push_token": "token456",
+    "status": "active",
+    "created_at": "2026-01-23T10:00:00Z"
+  }
 }
 ```
 
-**响应字段说明**：
+#### 错误响应示例
 
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| success | boolean | 注册是否成功 |
-| device_key | string | 设备密钥，用于后续推送请求 |
-| message | string | 响应消息 |
+```json
+{
+  "code": 4001,
+  "msg": "device_id is required",
+  "data": null
+}
+```
 
 ---
 
-### 2. 删除设备
+### 2. 更新设备Token
 
-删除设备并清除相关的推送配置和待发送消息。
+#### 接口地址
+```
+PUT /api/v1/device/update-token
+```
 
-**接口地址**：`DELETE /api/v1/device/delete`
-
-**请求参数**：
+#### 请求参数
 
 | 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| device_key | string | 是 | 设备密钥（注册时返回） |
+|-------|------|------|------|
+| device_id | string | 是 | 设备唯一标识符 |
+| push_token | string | 是 | 新的华为推送Token |
 
-**请求示例**：
+#### 请求示例
 
 ```bash
-curl -X DELETE "http://localhost:8080/api/v1/device/delete?device_key=abc123def456..."
+curl -X PUT http://your-domain.com/api/v1/device/update-token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": "device123",
+    "push_token": "new_token789"
+  }'
 ```
 
-**响应示例**：
+#### 成功响应示例
 
 ```json
 {
-  "success": true,
-  "message": "Device deleted successfully"
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "device_id": "device123",
+    "push_token": "new_token789",
+    "updated_at": "2026-01-23T10:05:00Z"
+  }
 }
 ```
 
-**响应字段说明**：
+#### 错误响应示例
 
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| success | boolean | 删除是否成功 |
-| message | string | 响应消息 |
-
-**说明**：
-- 会自动级联删除该设备的所有待发送消息（pending_messages）
-- 删除操作不可逆，请谨慎操作
-- 注意：由于华为 Push Kit 不提供 Token 删除接口，设备的 Push Token 在华为侧仍然有效，但本地已无法使用该 device_key 进行推送
+```json
+{
+  "code": 3001,
+  "msg": "device not found",
+  "data": null
+}
+```
 
 ---
 
-### 3. 推送通知消息
+### 3. 删除设备
 
-发送通知栏消息到指定设备。
+#### 接口地址
+```
+DELETE /api/v1/device/delete
+```
 
-**接口地址**：`GET /api/v1/push/notification`
-
-**请求参数**：
+#### 请求参数
 
 | 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| device_key | string | 是 | 设备密钥（注册时返回） |
+|-------|------|------|------|
+| device_id | string | 是 | 设备唯一标识符 |
+
+#### 请求示例
+
+```bash
+curl -X DELETE http://your-domain.com/api/v1/device/delete \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": "device123"
+  }'
+```
+
+#### 成功响应示例
+
+```json
+{
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "device_id": "device123",
+    "deleted_at": "2026-01-23T10:10:00Z"
+  }
+}
+```
+
+#### 错误响应示例
+
+```json
+{
+  "code": 3001,
+  "msg": "device not found",
+  "data": null
+}
+```
+
+#### 注意事项
+- 此接口会同时删除设备记录和该设备的所有待接收消息（pending_messages）
+- 删除操作不可逆，请谨慎使用
+
+---
+
+### 4. 推送通知
+
+#### 接口地址
+```
+GET /api/v1/push/notification
+```
+
+#### 请求参数
+
+| 参数名 | 类型 | 必填 | 说明 |
+|-------|------|------|------|
+| device_id | string | 是 | 目标设备ID |
 | title | string | 是 | 通知标题 |
 | body | string | 是 | 通知内容 |
-| data | string | 否 | 附加数据（JSON字符串） |
+| click_action | string | 否 | 点击动作 |
+| badge_count | int | 否 | 角标数量 |
 
-**请求示例**：
+#### 请求示例
 
 ```bash
-curl "http://localhost:8080/api/v1/push/notification?device_key=abc123&title=Hello&body=World&data=%7B%22key%22%3A%22value%22%7D"
+curl -X GET "http://your-domain.com/api/v1/push/notification?device_id=device123&title=Hello&body=World&badge_count=1"
 ```
 
-**响应示例**：
+#### 成功响应示例
 
 ```json
 {
-  "success": true,
-  "message": "Push notification sent successfully",
-  "request_id": "huawei_request_id_xxx"
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "message_id": "msg_123456",
+    "device_id": "device123",
+    "push_result": {
+      "code": "80000000",
+      "msg": "Success",
+      "request_id": "req_789"
+    },
+    "sent_at": "2026-01-23T10:15:00Z"
+  }
 }
 ```
 
-**响应字段说明**：
+#### 错误响应示例
 
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| success | boolean | 推送是否成功 |
-| message | string | 响应消息 |
-| request_id | string | 华为推送服务返回的请求ID |
+```json
+{
+  "code": 3003,
+  "msg": "push failed: invalid token",
+  "data": null
+}
+```
 
 ---
 
-### 4. 卡片刷新
+### 5. 推送卡片刷新
 
-刷新 HarmonyOS 卡片(Form)内容。
+#### 接口地址
+```
+GET /api/v1/push/form
+```
 
-**接口地址**：`GET /api/v1/push/form`
-
-**请求参数**：
+#### 请求参数
 
 | 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| device_key | string | 是 | 设备密钥（注册时返回） |
+|-------|------|------|------|
+| device_id | string | 是 | 目标设备ID |
 | form_id | string | 是 | 卡片ID |
-| form_data | string | 是 | 卡片数据（JSON字符串） |
+| data | string | 是 | 卡片数据（JSON字符串） |
 
-**请求示例**：
+#### 请求示例
 
 ```bash
-curl "http://localhost:8080/api/v1/push/form?device_key=abc123&form_id=form_001&form_data=%7B%22temperature%22%3A%2225%C2%B0C%22%7D"
+curl -X GET "http://your-domain.com/api/v1/push/form?device_id=device123&form_id=form_001&data=%7B%22title%22%3A%22New%20Content%22%7D"
 ```
 
-**响应示例**：
+#### 成功响应示例
 
 ```json
 {
-  "success": true,
-  "message": "Form update sent successfully",
-  "request_id": "huawei_request_id_xxx"
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "message_id": "msg_123457",
+    "device_id": "device123",
+    "form_id": "form_001",
+    "push_result": {
+      "code": "80000000",
+      "msg": "Success",
+      "request_id": "req_790"
+    },
+    "sent_at": "2026-01-23T10:20:00Z"
+  }
+}
+```
+
+#### 错误响应示例
+
+```json
+{
+  "code": 4003,
+  "msg": "invalid form data format",
+  "data": null
 }
 ```
 
 ---
 
-### 5. 后台推送
+### 6. 推送后台消息
 
-发送后台数据推送，应用在后台也能接收。
-
-**接口地址**：`GET /api/v1/push/background`
-
-**请求参数**：
-
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| device_key | string | 是 | 设备密钥（注册时返回） |
-| data | string | 是 | 推送数据（JSON字符串） |
-
-**请求示例**：
-
-```bash
-curl "http://localhost:8080/api/v1/push/background?device_key=abc123&data=%7B%22action%22%3A%22sync%22%2C%22timestamp%22%3A1234567890%7D"
+#### 接口地址
+```
+GET /api/v1/push/background
 ```
 
-**响应示例**：
+#### 请求参数
+
+| 参数名 | 类型 | 必填 | 说明 |
+|-------|------|------|------|
+| device_id | string | 是 | 目标设备ID |
+| data | string | 是 | 消息数据（JSON字符串） |
+
+#### 请求示例
+
+```bash
+curl -X GET "http://your-domain.com/api/v1/push/background?device_id=device123&data=%7B%22action%22%3A%22sync%22%7D"
+```
+
+#### 成功响应示例
 
 ```json
 {
-  "success": true,
-  "message": "Background push sent successfully",
-  "request_id": "huawei_request_id_xxx"
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "message_id": "msg_123458",
+    "device_id": "device123",
+    "push_result": {
+      "code": "80000000",
+      "msg": "Success",
+      "request_id": "req_791"
+    },
+    "sent_at": "2026-01-23T10:25:00Z"
+  }
+}
+```
+
+#### 错误响应示例
+
+```json
+{
+  "code": 3001,
+  "msg": "device not found",
+  "data": null
 }
 ```
 
 ---
 
-### 6. 批量推送
+### 7. 批量推送
 
-同时向多个设备推送通知消息。
+#### 接口地址
+```
+GET /api/v1/push/batch
+```
 
-**接口地址**：`GET /api/v1/push/batch`
-
-**请求参数**：
+#### 请求参数
 
 | 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| device_keys | string | 是 | 设备密钥列表（逗号分隔） |
+|-------|------|------|------|
+| device_ids | string | 是 | 设备ID列表（逗号分隔） |
 | title | string | 是 | 通知标题 |
 | body | string | 是 | 通知内容 |
-| data | string | 否 | 附加数据（JSON字符串） |
+| badge_count | int | 否 | 角标数量 |
 
-**请求示例**：
+#### 请求示例
 
 ```bash
-curl "http://localhost:8080/api/v1/push/batch?device_keys=abc123,def456,ghi789&title=群发消息&body=这是一条群发消息"
+curl -X GET "http://your-domain.com/api/v1/push/batch?device_ids=device123,device456,device789&title=Batch%20Push&body=Hello%20Everyone"
 ```
 
-**响应示例**：
+#### 成功响应示例
 
 ```json
 {
-  "success": true,
-  "message": "Batch push completed",
-  "results": [
-    {
-      "device_key": "abc123",
-      "success": true,
-      "request_id": "huawei_request_id_xxx"
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "total": 3,
+    "success": 2,
+    "failed": 1,
+    "results": [
+      {
+        "device_id": "device123",
+        "status": "success",
+        "message_id": "msg_123459"
+      },
+      {
+        "device_id": "device456",
+        "status": "success",
+        "message_id": "msg_123460"
+      },
+      {
+        "device_id": "device789",
+        "status": "failed",
+        "error": "device not found"
+      }
+    ],
+    "sent_at": "2026-01-23T10:30:00Z"
+  }
+}
+```
+
+#### 错误响应示例
+
+```json
+{
+  "code": 4002,
+  "msg": "device_ids is required",
+  "data": null
+}
+```
+
+---
+
+### 8. 推送统计
+
+#### 接口地址
+```
+GET /api/v1/push/statistics
+```
+
+#### 请求参数
+
+| 参数名 | 类型 | 必填 | 说明 |
+|-------|------|------|------|
+| device_id | string | 否 | 设备ID（不填则返回全局统计） |
+| start_time | string | 否 | 开始时间（ISO 8601格式） |
+| end_time | string | 否 | 结束时间（ISO 8601格式） |
+
+#### 请求示例
+
+```bash
+curl -X GET "http://your-domain.com/api/v1/push/statistics?device_id=device123&start_time=2026-01-20T00:00:00Z&end_time=2026-01-23T23:59:59Z"
+```
+
+#### 成功响应示例
+
+```json
+{
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "device_id": "device123",
+    "period": {
+      "start": "2026-01-20T00:00:00Z",
+      "end": "2026-01-23T23:59:59Z"
     },
-    {
-      "device_key": "def456",
-      "success": true,
-      "request_id": "huawei_request_id_yyy"
-    },
-    {
-      "device_key": "ghi789",
-      "success": false,
-      "error": "Device not found"
+    "statistics": {
+      "total_sent": 150,
+      "total_delivered": 145,
+      "total_failed": 5,
+      "by_type": {
+        "notification": 100,
+        "form": 30,
+        "background": 20
+      },
+      "delivery_rate": 96.67
     }
-  ]
+  }
 }
 ```
 
-**响应字段说明**：
+#### 错误响应示例
 
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| success | boolean | 批量推送是否全部成功 |
-| message | string | 响应消息 |
-| results | array | 每个设备的推送结果 |
-| results[].device_key | string | 设备密钥 |
-| results[].success | boolean | 该设备推送是否成功 |
-| results[].request_id | string | 华为推送请求ID（成功时） |
-| results[].error | string | 错误信息（失败时） |
+```json
+{
+  "code": 4003,
+  "msg": "invalid time format",
+  "data": null
+}
+```
 
 ---
 
-### 7. 健康检查
+### 9. 获取待接收消息
 
-检查服务是否正常运行。
+#### 接口地址
+```
+GET /api/v1/messages/pending
+```
 
-**接口地址**：`GET /health`
+#### 请求参数
 
-**请求示例**：
+| 参数名 | 类型 | 必填 | 说明 |
+|-------|------|------|------|
+| device_id | string | 是 | 设备ID |
+| limit | int | 否 | 返回数量限制（默认：20，最大：100） |
+
+#### 请求示例
 
 ```bash
-curl http://localhost:8080/health
+curl -X GET "http://your-domain.com/api/v1/messages/pending?device_id=device123&limit=10"
 ```
 
-**响应示例**：
+#### 成功响应示例
 
 ```json
 {
-  "status": "ok",
-  "database": "connected",
-  "timestamp": "2026-01-21T10:30:00Z"
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "device_id": "device123",
+    "total": 5,
+    "messages": [
+      {
+        "message_id": "msg_001",
+        "type": "notification",
+        "payload": {
+          "title": "New Message",
+          "body": "You have a new notification"
+        },
+        "created_at": "2026-01-23T09:00:00Z"
+      },
+      {
+        "message_id": "msg_002",
+        "type": "background",
+        "payload": {
+          "action": "sync",
+          "data": "update_required"
+        },
+        "created_at": "2026-01-23T09:05:00Z"
+      }
+    ]
+  }
+}
+```
+
+#### 错误响应示例
+
+```json
+{
+  "code": 4002,
+  "msg": "device_id is required",
+  "data": null
 }
 ```
 
 ---
 
-## 错误码说明
+### 10. 确认消息
 
-### HTTP 状态码
+#### 接口地址
+```
+POST /api/v1/messages/confirm
+```
 
-| 状态码 | 说明 |
-|--------|------|
-| 200 | 请求成功 |
-| 400 | 请求参数错误 |
-| 404 | 资源不存在 |
-| 429 | 请求过于频繁，触发速率限制 |
-| 500 | 服务器内部错误 |
+#### 请求参数
 
-### 业务错误码
+| 参数名 | 类型 | 必填 | 说明 |
+|-------|------|------|------|
+| device_id | string | 是 | 设备ID |
+| message_ids | array | 是 | 消息ID数组 |
 
-错误响应格式：
+#### 请求示例
+
+```bash
+curl -X POST http://your-domain.com/api/v1/messages/confirm \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": "device123",
+    "message_ids": ["msg_001", "msg_002"]
+  }'
+```
+
+#### 成功响应示例
 
 ```json
 {
-  "success": false,
-  "error": "错误描述",
-  "code": "ERROR_CODE"
+  "code": 0,
+  "msg": "success",
+  "data": {
+    "device_id": "device123",
+    "confirmed": 2,
+    "message_ids": ["msg_001", "msg_002"],
+    "confirmed_at": "2026-01-23T10:40:00Z"
+  }
 }
 ```
 
-常见错误码：
+#### 错误响应示例
 
-| 错误码 | 说明 |
-|--------|------|
-| INVALID_DEVICE_KEY | Device Key 无效或已过期 |
-| DEVICE_NOT_FOUND | 设备未找到 |
-| PUSH_TOKEN_INVALID | Push Token 无效 |
-| RATE_LIMIT_EXCEEDED | 超出速率限制 |
-| ENCRYPTION_ERROR | 加密/解密错误 |
-| HUAWEI_PUSH_ERROR | 华为推送服务错误 |
-| DATABASE_ERROR | 数据库错误 |
+```json
+{
+  "code": 3004,
+  "msg": "message not found",
+  "data": {
+    "invalid_ids": ["msg_003"]
+  }
+}
+```
 
 ---
 
-## 使用示例
+### 11. 健康检查
 
-### JavaScript/TypeScript
+#### 接口地址
+```
+GET /health
+```
+
+#### 请求参数
+
+无
+
+#### 请求示例
+
+```bash
+curl -X GET http://your-domain.com/health
+```
+
+#### 成功响应示例
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-01-23T10:45:00Z",
+  "version": "1.0.0",
+  "services": {
+    "database": "connected",
+    "push_service": "available"
+  }
+}
+```
+
+#### 注意事项
+- 此接口不遵循统一响应格式，保持独立的健康检查格式
+- 用于监控系统运行状态
+
+---
+
+## 使用示例代码
+
+### JavaScript (Fetch API)
 
 ```javascript
-// 注册设备
-async function registerDevice(pushToken) {
-  const response = await fetch('http://localhost:8080/api/v1/device/register', {
+// 统一的响应处理函数
+async function callAPI(url, options = {}) {
+  try {
+    const response = await fetch(url, options);
+    const result = await response.json();
+    
+    if (result.code === 0) {
+      console.log('Success:', result.msg);
+      return result.data;
+    } else {
+      console.error('Error:', result.msg);
+      throw new Error(`API Error ${result.code}: ${result.msg}`);
+    }
+  } catch (error) {
+    console.error('Request failed:', error);
+    throw error;
+  }
+}
+
+// 设备注册示例
+async function registerDevice() {
+  const data = await callAPI('http://your-domain.com/api/v1/device/register', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      push_token: pushToken,
-      device_type: 'phone',
-      os_version: '5.0.0',
+      device_id: 'device123',
+      push_token: 'token456',
+      device_type: 'HarmonyOS',
+      os_version: '4.0',
       app_version: '1.0.0'
     })
   });
-  const data = await response.json();
-  return data.device_key;
+  
+  console.log('Device registered:', data);
+  return data;
 }
 
-// 推送通知
-async function sendNotification(deviceKey, title, body) {
+// 推送通知示例
+async function sendNotification(deviceId, title, body) {
   const params = new URLSearchParams({
-    device_key: deviceKey,
+    device_id: deviceId,
     title: title,
-    body: body
+    body: body,
+    badge_count: '1'
   });
-  const response = await fetch(`http://localhost:8080/api/v1/push/notification?${params}`);
-  return await response.json();
+  
+  const data = await callAPI(`http://your-domain.com/api/v1/push/notification?${params}`);
+  console.log('Notification sent:', data);
+  return data;
+}
+
+// 获取待接收消息示例
+async function getPendingMessages(deviceId) {
+  const params = new URLSearchParams({
+    device_id: deviceId,
+    limit: '20'
+  });
+  
+  const data = await callAPI(`http://your-domain.com/api/v1/messages/pending?${params}`);
+  console.log('Pending messages:', data);
+  return data;
 }
 ```
 
-### Python
+### Python (Requests)
 
 ```python
 import requests
 import json
 
-# 注册设备
-def register_device(push_token):
-    response = requests.post(
-        'http://localhost:8080/api/v1/device/register',
-        json={
-            'push_token': push_token,
-            'device_type': 'phone',
-            'os_version': '5.0.0',
-            'app_version': '1.0.0'
+class DengDengAPIClient:
+    def __init__(self, base_url):
+        self.base_url = base_url
+    
+    def _handle_response(self, response):
+        """统一处理API响应"""
+        result = response.json()
+        
+        if result['code'] == 0:
+            print(f"Success: {result['msg']}")
+            return result['data']
+        else:
+            error_msg = f"API Error {result['code']}: {result['msg']}"
+            print(error_msg)
+            raise Exception(error_msg)
+    
+    def register_device(self, device_id, push_token, device_type=None, os_version=None, app_version=None):
+        """设备注册"""
+        url = f"{self.base_url}/api/v1/device/register"
+        payload = {
+            'device_id': device_id,
+            'push_token': push_token
         }
-    )
-    return response.json()['device_key']
+        
+        if device_type:
+            payload['device_type'] = device_type
+        if os_version:
+            payload['os_version'] = os_version
+        if app_version:
+            payload['app_version'] = app_version
+        
+        response = requests.post(url, json=payload)
+        return self._handle_response(response)
+    
+    def send_notification(self, device_id, title, body, badge_count=None):
+        """推送通知"""
+        url = f"{self.base_url}/api/v1/push/notification"
+        params = {
+            'device_id': device_id,
+            'title': title,
+            'body': body
+        }
+        
+        if badge_count is not None:
+            params['badge_count'] = badge_count
+        
+        response = requests.get(url, params=params)
+        return self._handle_response(response)
+    
+    def get_pending_messages(self, device_id, limit=20):
+        """获取待接收消息"""
+        url = f"{self.base_url}/api/v1/messages/pending"
+        params = {
+            'device_id': device_id,
+            'limit': limit
+        }
+        
+        response = requests.get(url, params=params)
+        return self._handle_response(response)
+    
+    def confirm_messages(self, device_id, message_ids):
+        """确认消息"""
+        url = f"{self.base_url}/api/v1/messages/confirm"
+        payload = {
+            'device_id': device_id,
+            'message_ids': message_ids
+        }
+        
+        response = requests.post(url, json=payload)
+        return self._handle_response(response)
 
-# 推送通知
-def send_notification(device_key, title, body):
-    params = {
-        'device_key': device_key,
-        'title': title,
-        'body': body
-    }
-    response = requests.get(
-        'http://localhost:8080/api/v1/push/notification',
-        params=params
-    )
-    return response.json()
+# 使用示例
+if __name__ == '__main__':
+    client = DengDengAPIClient('http://your-domain.com')
+    
+    try:
+        # 注册设备
+        device_data = client.register_device(
+            device_id='device123',
+            push_token='token456',
+            device_type='HarmonyOS',
+            os_version='4.0',
+            app_version='1.0.0'
+        )
+        print(f"Device registered: {device_data}")
+        
+        # 发送通知
+        push_data = client.send_notification(
+            device_id='device123',
+            title='Hello',
+            body='World',
+            badge_count=1
+        )
+        print(f"Notification sent: {push_data}")
+        
+        # 获取待接收消息
+        messages = client.get_pending_messages(device_id='device123', limit=10)
+        print(f"Pending messages: {messages}")
+        
+        # 确认消息
+        if messages and messages['messages']:
+            message_ids = [msg['message_id'] for msg in messages['messages']]
+            confirm_data = client.confirm_messages(device_id='device123', message_ids=message_ids)
+            print(f"Messages confirmed: {confirm_data}")
+            
+    except Exception as e:
+        print(f"Error occurred: {e}")
 ```
 
 ### Go
@@ -410,63 +876,179 @@ import (
     "bytes"
     "encoding/json"
     "fmt"
+    "io"
     "net/http"
     "net/url"
 )
 
-type RegisterRequest struct {
-    PushToken  string `json:"push_token"`
-    DeviceType string `json:"device_type"`
-    OSVersion  string `json:"os_version"`
-    AppVersion string `json:"app_version"`
+// 统一响应结构
+type APIResponse struct {
+    Code int             `json:"code"`
+    Msg  string          `json:"msg"`
+    Data json.RawMessage `json:"data"`
 }
 
-type RegisterResponse struct {
-    Success   bool   `json:"success"`
-    DeviceKey string `json:"device_key"`
-    Message   string `json:"message"`
+type DengDengClient struct {
+    BaseURL string
+    Client  *http.Client
 }
 
-// 注册设备
-func registerDevice(pushToken string) (string, error) {
-    req := RegisterRequest{
-        PushToken:  pushToken,
-        DeviceType: "phone",
-        OSVersion:  "5.0.0",
-        AppVersion: "1.0.0",
-    }
-    
-    jsonData, _ := json.Marshal(req)
-    resp, err := http.Post(
-        "http://localhost:8080/api/v1/device/register",
-        "application/json",
-        bytes.NewBuffer(jsonData),
-    )
-    if err != nil {
-        return "", err
-    }
+// 统一处理响应
+func (c *DengDengClient) handleResponse(resp *http.Response, result interface{}) error {
     defer resp.Body.Close()
     
-    var result RegisterResponse
-    json.NewDecoder(resp.Body).Decode(&result)
-    return result.DeviceKey, nil
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return fmt.Errorf("failed to read response: %w", err)
+    }
+    
+    var apiResp APIResponse
+    if err := json.Unmarshal(body, &apiResp); err != nil {
+        return fmt.Errorf("failed to parse response: %w", err)
+    }
+    
+    if apiResp.Code != 0 {
+        return fmt.Errorf("API error %d: %s", apiResp.Code, apiResp.Msg)
+    }
+    
+    if result != nil && apiResp.Data != nil {
+        if err := json.Unmarshal(apiResp.Data, result); err != nil {
+            return fmt.Errorf("failed to parse data: %w", err)
+        }
+    }
+    
+    return nil
+}
+
+// 设备注册
+type RegisterDeviceRequest struct {
+    DeviceID   string `json:"device_id"`
+    PushToken  string `json:"push_token"`
+    DeviceType string `json:"device_type,omitempty"`
+    OSVersion  string `json:"os_version,omitempty"`
+    AppVersion string `json:"app_version,omitempty"`
+}
+
+type DeviceInfo struct {
+    DeviceID  string `json:"device_id"`
+    PushToken string `json:"push_token"`
+    Status    string `json:"status"`
+    CreatedAt string `json:"created_at"`
+}
+
+func (c *DengDengClient) RegisterDevice(req RegisterDeviceRequest) (*DeviceInfo, error) {
+    payload, err := json.Marshal(req)
+    if err != nil {
+        return nil, err
+    }
+    
+    resp, err := c.Client.Post(
+        c.BaseURL+"/api/v1/device/register",
+        "application/json",
+        bytes.NewBuffer(payload),
+    )
+    if err != nil {
+        return nil, err
+    }
+    
+    var device DeviceInfo
+    if err := c.handleResponse(resp, &device); err != nil {
+        return nil, err
+    }
+    
+    return &device, nil
 }
 
 // 推送通知
-func sendNotification(deviceKey, title, body string) error {
+func (c *DengDengClient) SendNotification(deviceID, title, body string, badgeCount int) (map[string]interface{}, error) {
     params := url.Values{}
-    params.Add("device_key", deviceKey)
+    params.Add("device_id", deviceID)
     params.Add("title", title)
     params.Add("body", body)
-    
-    resp, err := http.Get(
-        "http://localhost:8080/api/v1/push/notification?" + params.Encode(),
-    )
-    if err != nil {
-        return err
+    if badgeCount > 0 {
+        params.Add("badge_count", fmt.Sprintf("%d", badgeCount))
     }
-    defer resp.Body.Close()
-    return nil
+    
+    resp, err := c.Client.Get(c.BaseURL + "/api/v1/push/notification?" + params.Encode())
+    if err != nil {
+        return nil, err
+    }
+    
+    var result map[string]interface{}
+    if err := c.handleResponse(resp, &result); err != nil {
+        return nil, err
+    }
+    
+    return result, nil
+}
+
+// 获取待接收消息
+type PendingMessagesResponse struct {
+    DeviceID string          `json:"device_id"`
+    Total    int             `json:"total"`
+    Messages []PendingMessage `json:"messages"`
+}
+
+type PendingMessage struct {
+    MessageID string                 `json:"message_id"`
+    Type      string                 `json:"type"`
+    Payload   map[string]interface{} `json:"payload"`
+    CreatedAt string                 `json:"created_at"`
+}
+
+func (c *DengDengClient) GetPendingMessages(deviceID string, limit int) (*PendingMessagesResponse, error) {
+    params := url.Values{}
+    params.Add("device_id", deviceID)
+    params.Add("limit", fmt.Sprintf("%d", limit))
+    
+    resp, err := c.Client.Get(c.BaseURL + "/api/v1/messages/pending?" + params.Encode())
+    if err != nil {
+        return nil, err
+    }
+    
+    var result PendingMessagesResponse
+    if err := c.handleResponse(resp, &result); err != nil {
+        return nil, err
+    }
+    
+    return &result, nil
+}
+
+func main() {
+    client := &DengDengClient{
+        BaseURL: "http://your-domain.com",
+        Client:  &http.Client{},
+    }
+    
+    // 注册设备
+    device, err := client.RegisterDevice(RegisterDeviceRequest{
+        DeviceID:   "device123",
+        PushToken:  "token456",
+        DeviceType: "HarmonyOS",
+        OSVersion:  "4.0",
+        AppVersion: "1.0.0",
+    })
+    if err != nil {
+        fmt.Printf("Register failed: %v\n", err)
+        return
+    }
+    fmt.Printf("Device registered: %+v\n", device)
+    
+    // 发送通知
+    pushResult, err := client.SendNotification("device123", "Hello", "World", 1)
+    if err != nil {
+        fmt.Printf("Push failed: %v\n", err)
+        return
+    }
+    fmt.Printf("Notification sent: %+v\n", pushResult)
+    
+    // 获取待接收消息
+    messages, err := client.GetPendingMessages("device123", 10)
+    if err != nil {
+        fmt.Printf("Get messages failed: %v\n", err)
+        return
+    }
+    fmt.Printf("Pending messages: %+v\n", messages)
 }
 ```
 
@@ -474,41 +1056,44 @@ func sendNotification(deviceKey, title, body string) error {
 
 ## 注意事项
 
-1. **安全性**
-   - 生产环境请使用 HTTPS
-   - 妥善保管 Device Key，不要泄露
-   - 建议实现 API 鉴权机制
+1. **统一响应格式**
+   - 所有API接口（除健康检查外）都遵循统一的响应格式：`{code, msg, data}`
+   - `code` 为 0 表示成功，非 0 表示错误
+   - 客户端应始终检查 `code` 字段来判断请求是否成功
 
-2. **速率限制**
-   - 默认每设备每日最大推送数为 1000
-   - 超出限制将返回 429 错误
-   - 可通过环境变量 `MAX_DAILY_PUSH_PER_DEVICE` 调整
+2. **设备删除**
+   - 删除设备时会自动删除该设备的所有待接收消息
+   - 删除操作不可逆，请谨慎使用
 
-3. **数据格式**
-   - GET 请求参数中的 JSON 数据需要 URL 编码
-   - POST 请求使用标准 JSON 格式
-   - 所有字符串使用 UTF-8 编码
+3. **消息确认机制**
+   - 客户端获取待接收消息后，应及时调用确认接口
+   - 未确认的消息会保留在服务器，直到被确认或过期
 
-4. **Device Key 有效期**
-   - 默认有效期为 1 年
-   - 过期后需要重新注册
-   - 可通过环境变量 `DEVICE_KEY_TTL` 调整
+4. **批量推送**
+   - 批量推送接口会返回每个设备的推送结果
+   - 部分失败不会影响其他设备的推送
 
 5. **错误处理**
-   - 所有接口都应检查 `success` 字段
-   - 失败时查看 `error` 字段获取详细信息
-   - 建议实现重试机制
+   - 建议在客户端实现统一的错误处理逻辑
+   - 根据错误码进行相应的错误处理和用户提示
 
----
+6. **性能优化**
+   - 批量操作优先使用批量接口，避免循环调用单个接口
+   - 合理设置 `limit` 参数，避免一次获取过多数据
 
-## 更新日志
+7. **安全性**
+   - 生产环境应使用 HTTPS 协议
+   - 建议实现 API 认证机制（如 JWT Token）
+   - 敏感数据应进行加密传输
 
-### v1.0.0 (2026-01-21)
-- 初始版本发布
-- 支持基本的设备注册和推送功能
-- 支持通知、卡片、后台推送
-- 支持批量推送
+8. **推送Token管理**
+   - 推送Token可能会变更，应及时调用更新Token接口
+   - 定期检查设备状态，及时清理无效设备
 
----
+9. **时区处理**
+   - 所有时间字段均使用 ISO 8601 格式的 UTC 时间
+   - 客户端需要根据本地时区进行转换
 
-如有问题或建议，请访问 [GitHub Issues](https://github.com/dengdeng-harmenyos/server/issues)。
+10. **API版本**
+    - 当前版本为 v1
+    - 后续版本更新会保持向后兼容，或通过URL版本号区分

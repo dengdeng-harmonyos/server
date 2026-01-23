@@ -34,20 +34,14 @@ func NewDeviceHandler(db *database.Database, cfg config.Config) (*DeviceHandler,
 func (h *DeviceHandler) Register(c *gin.Context) {
 	var req models.DeviceRegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid request: " + err.Error(),
-		})
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid request: "+err.Error())
 		return
 	}
 
 	// 加密push_token
 	encryptedToken, err := h.encryption.Encrypt(req.PushToken)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to encrypt token",
-		})
+		RespondError(c, http.StatusInternalServerError, models.SystemError, "Failed to encrypt token")
 		return
 	}
 
@@ -67,17 +61,13 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 		`, req.DeviceType, req.OSVersion, req.AppVersion, req.PublicKey, existingDevice.ID)
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"error":   "Failed to update device",
-			})
+			RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to update device")
 			return
 		}
 
-		c.JSON(http.StatusOK, models.DeviceRegisterResponse{
-			Success:   true,
-			DeviceKey: existingDevice.DeviceKey,
-			Message:   "Device updated successfully",
+		RespondSuccess(c, http.StatusOK, gin.H{
+			"device_key": existingDevice.DeviceKey,
+			"message":    "Device updated successfully",
 		})
 		return
 	}
@@ -92,17 +82,13 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 	`, deviceKey, encryptedToken, req.PublicKey, req.DeviceType, req.OSVersion, req.AppVersion)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to register device",
-		})
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to register device")
 		return
 	}
 
-	c.JSON(http.StatusOK, models.DeviceRegisterResponse{
-		Success:   true,
-		DeviceKey: deviceKey,
-		Message:   "Device registered successfully",
+	RespondSuccess(c, http.StatusOK, gin.H{
+		"device_key": deviceKey,
+		"message":    "Device registered successfully",
 	})
 }
 
@@ -114,20 +100,14 @@ func (h *DeviceHandler) UpdateToken(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid request",
-		})
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid request")
 		return
 	}
 
 	// 加密新token
 	encryptedToken, err := h.encryption.Encrypt(req.NewPushToken)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to encrypt token",
-		})
+		RespondError(c, http.StatusInternalServerError, models.SystemError, "Failed to encrypt token")
 		return
 	}
 
@@ -139,24 +119,17 @@ func (h *DeviceHandler) UpdateToken(c *gin.Context) {
 	`, encryptedToken, req.DeviceKey)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to update token",
-		})
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to update token")
 		return
 	}
 
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Device not found",
-		})
+		RespondError(c, http.StatusNotFound, models.DataNotFound, "Device not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
+	RespondSuccess(c, http.StatusOK, gin.H{
 		"message": "Token updated successfully",
 	})
 }
@@ -165,10 +138,7 @@ func (h *DeviceHandler) UpdateToken(c *gin.Context) {
 func (h *DeviceHandler) Delete(c *gin.Context) {
 	deviceKey := c.Query("device_key")
 	if deviceKey == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "device_key is required",
-		})
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "device_key is required")
 		return
 	}
 
@@ -181,49 +151,46 @@ func (h *DeviceHandler) Delete(c *gin.Context) {
 
 	if err != nil {
 		// 设备不存在
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Device not found",
-		})
+		RespondError(c, http.StatusNotFound, models.DataNotFound, "Device not found")
 		return
 	}
 
 	// 解密push_token
 	pushToken, err := h.encryption.Decrypt(encryptedToken)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to decrypt push token",
-		})
+		RespondError(c, http.StatusInternalServerError, models.SystemError, "Failed to decrypt push token")
 		return
 	}
 
-	// 删除数据库记录（会自动级联删除相关的pending_messages）
+	// 先删除pending_messages中的相关消息
+	_, err = h.db.DB.Exec(`
+		DELETE FROM pending_messages WHERE device_key = $1
+	`, deviceKey)
+
+	if err != nil {
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to delete pending messages")
+		return
+	}
+
+	// 删除设备记录
 	result, err := h.db.DB.Exec(`
 		DELETE FROM devices WHERE device_key = $1
 	`, deviceKey)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to delete device",
-		})
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to delete device")
 		return
 	}
 
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Device not found",
-		})
+		RespondError(c, http.StatusNotFound, models.DataNotFound, "Device not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success":    true,
+	RespondSuccess(c, http.StatusOK, gin.H{
 		"message":    "Device deleted successfully",
-		"push_token": pushToken, // 返回push_token供上层调用华为删除接口
+		"push_token": pushToken,
 	})
 }
 
