@@ -7,11 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/dengdeng-harmenyos/server/internal/config"
 	"github.com/dengdeng-harmenyos/server/internal/database"
+	"github.com/dengdeng-harmenyos/server/internal/logger"
 	"github.com/dengdeng-harmenyos/server/internal/models"
 	"github.com/dengdeng-harmenyos/server/internal/service"
+	"github.com/gin-gonic/gin"
 )
 
 type PushHandler struct {
@@ -75,44 +76,45 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	// 获取设备公钥
 	publicKey, err := h.deviceHandler.GetPublicKey(req.DeviceKey)
 	if err != nil || publicKey == "" {
-		// 如果没有公钥，发送普通推送（兼容旧设备）
-		err = h.pushService.SendNotification(pushToken, req.Title, req.Body, data)
-		if err != nil {
-			RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to send push: "+err.Error())
-			return
-		}
-	} else {
-		// 有公钥，使用加密存储方案
-		// 1. 加密消息内容
-		messageContent := service.MessageContent{
-			Title:   req.Title,
-			Content: req.Body,
-			Data:    data,
-		}
-		encryptedMsg, err := h.cryptoService.EncryptMessage(publicKey, messageContent)
-		if err != nil {
-			RespondError(c, http.StatusInternalServerError, models.SystemError, "Failed to encrypt message: "+err.Error())
-			return
-		}
-
-		// 2. 保存加密消息到数据库
-		err = h.messageHandler.SaveEncryptedMessage(req.DeviceKey, h.serverName, encryptedMsg)
-		if err != nil {
-			RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to save message: "+err.Error())
-			return
-		}
-
-		// 3. 发送华为推送通知（只包含提示信息）
-		notificationData := map[string]interface{}{
-			"type":        "new_message",
-			"server_name": h.serverName,
-		}
-		err = h.pushService.SendNotification(pushToken, "新消息", "您有新的消息，请打开查看", notificationData)
-		if err != nil {
-			RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to send notification: "+err.Error())
-			return
-		}
+		// 必须有公钥才能处理推送
+		RespondError(c, http.StatusBadRequest, models.OperationFailed, "Device public key not found, please register device first")
+		return
 	}
+
+	// 1. 加密消息内容
+	messageContent := service.MessageContent{
+		Title:   req.Title,
+		Content: req.Body,
+		Data:    data,
+	}
+	encryptedMsg, err := h.cryptoService.EncryptMessage(publicKey, messageContent)
+	if err != nil {
+		logger.ErrorWithStack(err, "Failed to encrypt message for device: %s", req.DeviceKey)
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to send notification: "+err.Error())
+		return
+	}
+
+	// 2. 发送华为推送通知（明文内容，用于显示通知）
+	notificationData := map[string]interface{}{
+		"type":        "new_message",
+		"server_name": h.serverName,
+	}
+	err = h.pushService.SendNotification(pushToken, req.Title, req.Body, notificationData)
+	if err != nil {
+		logger.ErrorWithStack(err, "Failed to send push notification for device: %s", req.DeviceKey)
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to send notification: "+err.Error())
+		return
+	}
+
+	// 3. 保存加密消息到数据库
+	err = h.messageHandler.SaveEncryptedMessage(req.DeviceKey, h.serverName, encryptedMsg)
+	if err != nil {
+		logger.ErrorWithStack(err, "Failed to save encrypted message for device: %s", req.DeviceKey)
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to save message: "+err.Error())
+		return
+	}
+
+	logger.Info("Successfully sent notification to device: %s, title: %s", req.DeviceKey, req.Title)
 
 	// 更新统计
 	h.updateStatistics("notification", true)

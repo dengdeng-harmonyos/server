@@ -4,10 +4,11 @@ import (
 	"database/sql"
 	"net/http"
 	"time"
-
-	"github.com/gin-gonic/gin"
+	"github.com/dengdeng-harmenyos/server/internal/logger"
 	"github.com/dengdeng-harmenyos/server/internal/models"
 	"github.com/dengdeng-harmenyos/server/internal/service"
+	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 )
 
 // MessageHandler 消息处理器
@@ -48,17 +49,14 @@ func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
 	}
 
 	if deviceKey == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"message": "Missing device key",
-		})
+		RespondError(c, http.StatusUnauthorized, models.Unauthorized, "Missing device key")
 		return
 	}
 
 	// 查询未投递的消息
 	rows, err := h.db.Query(`
-		SELECT id, server_name, encrypted_aes_key, encrypted_content, iv, 
-		       EXTRACT(EPOCH FROM created_at) * 1000 as timestamp
+		SELECT id::TEXT, server_name, encrypted_aes_key, encrypted_content, iv, 
+		       EXTRACT(EPOCH FROM created_at)::BIGINT * 1000 as timestamp
 		FROM pending_messages
 		WHERE device_key = $1 
 		  AND delivered = false 
@@ -68,6 +66,7 @@ func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
 	`, deviceKey)
 
 	if err != nil {
+		logger.ErrorWithStack(err, "Failed to query pending messages for device: %s", deviceKey)
 		RespondError(c, http.StatusInternalServerError, models.SystemError, "Failed to query messages: "+err.Error())
 		return
 	}
@@ -121,7 +120,10 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 
 	var req ConfirmMessagesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+
+		logger.ErrorWithStack(err, "Failed to bind confirm request from device: %s", deviceKey)
 		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid request: "+err.Error())
+
 		return
 	}
 
@@ -132,21 +134,26 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 		return
 	}
 
-	// 构建 SQL IN 子句
+	// 构建 SQL IN 子句 - 使用 pq.Array 将字符串数组转换为 PostgreSQL 数组
 	query := `
 		UPDATE pending_messages 
 		SET delivered = true, confirmed_at = $1
-		WHERE device_key = $2 AND id = ANY($3)
+		WHERE device_key = $2 AND id::TEXT = ANY($3)
 	`
 
-	result, err := h.db.Exec(query, time.Now(), deviceKey, req.MessageIDs)
+	result, err := h.db.Exec(query, time.Now(), deviceKey, pq.Array(req.MessageIDs))
 	if err != nil {
+
+		logger.ErrorWithStack(err, "Failed to confirm messages for device: %s, messageIDs: %v", deviceKey, req.MessageIDs)
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to confirm messages: "+err.Error())
+
 		return
 	}
 
 	rowsAffected, _ := result.RowsAffected()
 
+
+	logger.Info("Confirmed %d messages for device: %s", rowsAffected, deviceKey)
 	RespondSuccess(c, http.StatusOK, gin.H{
 		"confirmedCount": rowsAffected,
 	})

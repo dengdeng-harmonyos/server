@@ -240,7 +240,7 @@ func (s *HuaweiPushService) SendNotification(pushToken, title, body string, data
 	payload := AlertPayload{
 		Notification: Notification{
 			Category:    "WORK", // 默认使用工作提醒类型，可根据业务需求修改
-			Title:       title,
+			Title:       "[工作提醒]" + title,
 			Body:        body,
 			ClickAction: clickAction,
 			Badge:       &Badge{AddNum: 1}, // 默认角标加1
@@ -322,7 +322,7 @@ func (s *HuaweiPushService) SendBatchNotification(pushTokens []string, title, bo
 	payload := AlertPayload{
 		Notification: Notification{
 			Category:    "WORK",
-			Title:       title,
+			Title:       "[工作提醒]" + title,
 			Body:        body,
 			ClickAction: clickAction,
 			Badge:       &Badge{AddNum: 1}, // 默认角标加1
