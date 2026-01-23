@@ -162,7 +162,7 @@ docker-compose up -d --build
 | `SERVER_NAME` | 服务器名称 | `噔噔推送服务` |
 | `PORT` | 服务端口 | `8080` |
 | `GIN_MODE` | 运行模式 | `release` |
-| `DEVICE_KEY_TTL` | Device Key有效期（秒） | `31536000` (1年) |
+| `DEVICE_ID_TTL` | Device Id有效期（秒） | `31536000` (1年) |
 | `MAX_DAILY_PUSH_PER_DEVICE` | 每设备每日最大推送数 | `1000` |
 
 ### 内部数据库配置（无需修改）

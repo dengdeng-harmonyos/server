@@ -4,7 +4,7 @@
 -- 设备表
 CREATE TABLE IF NOT EXISTS devices (
     id SERIAL PRIMARY KEY,
-    device_key VARCHAR(64) UNIQUE NOT NULL,           -- 服务端生成的随机UUID
+    device_id VARCHAR(64) UNIQUE NOT NULL,            -- 服务端生成的随机UUID
     push_token TEXT NOT NULL UNIQUE,                  -- 加密后的华为Push Token
     public_key TEXT,                                  -- RSA公钥(PEM格式)
     device_type VARCHAR(50),                          -- phone/tablet/watch
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS push_statistics (
 -- 待发送消息表（加密消息存储）
 CREATE TABLE IF NOT EXISTS pending_messages (
     id SERIAL PRIMARY KEY,
-    device_key VARCHAR(64) NOT NULL,
+    device_id VARCHAR(64) NOT NULL,
     server_name VARCHAR(255) NOT NULL,
     encrypted_aes_key TEXT NOT NULL,                  -- RSA加密的AES密钥
     encrypted_content TEXT NOT NULL,                  -- AES加密的消息内容
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS pending_messages (
     expires_at TIMESTAMP NOT NULL,
     confirmed_at TIMESTAMP,
     
-    CONSTRAINT fk_device_key FOREIGN KEY (device_key) REFERENCES devices(device_key) ON DELETE CASCADE
+    CONSTRAINT fk_device_id FOREIGN KEY (device_id) REFERENCES devices(device_id) ON DELETE CASCADE
 );
 
 -- 数据库迁移版本表
@@ -53,12 +53,12 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 );
 
 -- 创建索引
-CREATE INDEX IF NOT EXISTS idx_devices_device_key ON devices(device_key);
+CREATE INDEX IF NOT EXISTS idx_devices_device_id ON devices(device_id);
 CREATE INDEX IF NOT EXISTS idx_devices_is_active ON devices(is_active);
 CREATE INDEX IF NOT EXISTS idx_devices_last_active ON devices(last_active_at);
 CREATE INDEX IF NOT EXISTS idx_push_stats_date ON push_statistics(date);
 CREATE INDEX IF NOT EXISTS idx_push_stats_type ON push_statistics(push_type);
-CREATE INDEX IF NOT EXISTS idx_pending_device_key ON pending_messages(device_key);
+CREATE INDEX IF NOT EXISTS idx_pending_device_id ON pending_messages(device_id);
 CREATE INDEX IF NOT EXISTS idx_pending_delivered ON pending_messages(delivered);
 CREATE INDEX IF NOT EXISTS idx_pending_expires ON pending_messages(expires_at);
 

@@ -81,7 +81,7 @@ func main() {
 		// 设备管理
 		device := v1.Group("/device")
 		{
-			device.POST("/register", deviceHandler.Register)       // 注册设备，返回device_key
+			device.POST("/register", deviceHandler.Register)       // 注册设备，返回device_id
 			device.PUT("/update-token", deviceHandler.UpdateToken) // 更新Push Token
 			device.DELETE("/delete", deviceHandler.Delete)         // 删除设备
 		}

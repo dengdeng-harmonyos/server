@@ -41,7 +41,7 @@ func NewPushHandler(db *database.Database, deviceHandler *DeviceHandler, cfg con
 }
 
 // SendNotification 发送通知消息（GET方式）
-// GET /api/v1/push/notification?device_key=xxx&title=xxx&body=xxx&data={"key":"value"}
+// GET /api/v1/push/notification?device_id=xxx&title=xxx&body=xxx&data={"key":"value"}
 func (h *PushHandler) SendNotification(c *gin.Context) {
 	var req models.PushNotificationRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -49,8 +49,8 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 		return
 	}
 
-	// 根据device_key获取push_token
-	pushToken, err := h.deviceHandler.GetPushToken(req.DeviceKey)
+	// 根据device_id获取push_token
+	pushToken, err := h.deviceHandler.GetPushToken(req.DeviceId)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
@@ -74,7 +74,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	data["__server_name"] = h.serverName
 
 	// 获取设备公钥
-	publicKey, err := h.deviceHandler.GetPublicKey(req.DeviceKey)
+	publicKey, err := h.deviceHandler.GetPublicKey(req.DeviceId)
 	if err != nil || publicKey == "" {
 		// 必须有公钥才能处理推送
 		RespondError(c, http.StatusBadRequest, models.OperationFailed, "Device public key not found, please register device first")
@@ -89,7 +89,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	}
 	encryptedMsg, err := h.cryptoService.EncryptMessage(publicKey, messageContent)
 	if err != nil {
-		logger.ErrorWithStack(err, "Failed to encrypt message for device: %s", req.DeviceKey)
+		logger.ErrorWithStack(err, "Failed to encrypt message for device: %s", req.DeviceId)
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to send notification: "+err.Error())
 		return
 	}
@@ -101,20 +101,20 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	}
 	err = h.pushService.SendNotification(pushToken, req.Title, req.Body, notificationData)
 	if err != nil {
-		logger.ErrorWithStack(err, "Failed to send push notification for device: %s", req.DeviceKey)
+		logger.ErrorWithStack(err, "Failed to send push notification for device: %s", req.DeviceId)
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to send notification: "+err.Error())
 		return
 	}
 
 	// 3. 保存加密消息到数据库
-	err = h.messageHandler.SaveEncryptedMessage(req.DeviceKey, h.serverName, encryptedMsg)
+	err = h.messageHandler.SaveEncryptedMessage(req.DeviceId, h.serverName, encryptedMsg)
 	if err != nil {
-		logger.ErrorWithStack(err, "Failed to save encrypted message for device: %s", req.DeviceKey)
+		logger.ErrorWithStack(err, "Failed to save encrypted message for device: %s", req.DeviceId)
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to save message: "+err.Error())
 		return
 	}
 
-	logger.Info("Successfully sent notification to device: %s, title: %s", req.DeviceKey, req.Title)
+	logger.Info("Successfully sent notification to device: %s, title: %s", req.DeviceId, req.Title)
 
 	// 更新统计
 	h.updateStatistics("notification", true)
@@ -125,7 +125,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 }
 
 // SendFormUpdate 发送卡片刷新消息（GET方式）
-// GET /api/v1/push/form?device_key=xxx&form_id=xxx&form_data={"key":"value"}
+// GET /api/v1/push/form?device_id=xxx&form_id=xxx&form_data={"key":"value"}
 func (h *PushHandler) SendFormUpdate(c *gin.Context) {
 	var req models.FormUpdateRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -133,8 +133,8 @@ func (h *PushHandler) SendFormUpdate(c *gin.Context) {
 		return
 	}
 
-	// 根据device_key获取push_token
-	pushToken, err := h.deviceHandler.GetPushToken(req.DeviceKey)
+	// 根据device_id获取push_token
+	pushToken, err := h.deviceHandler.GetPushToken(req.DeviceId)
 	if err != nil {
 		RespondError(c, http.StatusNotFound, models.DataNotFound, "Device not found")
 		return
@@ -170,7 +170,7 @@ func (h *PushHandler) SendFormUpdate(c *gin.Context) {
 }
 
 // SendBackgroundMessage 发送后台消息（GET方式）
-// GET /api/v1/push/background?device_key=xxx&data={"action":"sync"}
+// GET /api/v1/push/background?device_id=xxx&data={"action":"sync"}
 func (h *PushHandler) SendBackgroundMessage(c *gin.Context) {
 	var req models.BackgroundPushRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -178,8 +178,8 @@ func (h *PushHandler) SendBackgroundMessage(c *gin.Context) {
 		return
 	}
 
-	// 根据device_key获取push_token
-	pushToken, err := h.deviceHandler.GetPushToken(req.DeviceKey)
+	// 根据device_id获取push_token
+	pushToken, err := h.deviceHandler.GetPushToken(req.DeviceId)
 	if err != nil {
 		RespondError(c, http.StatusNotFound, models.DataNotFound, "Device not found")
 		return
@@ -201,7 +201,7 @@ func (h *PushHandler) SendBackgroundMessage(c *gin.Context) {
 }
 
 // SendBatch 批量发送通知消息（GET方式）
-// GET /api/v1/push/batch?device_keys=key1,key2,key3&title=xxx&body=xxx&data={"key":"value"}
+// GET /api/v1/push/batch?device_ids=key1,key2,key3&title=xxx&body=xxx&data={"key":"value"}
 func (h *PushHandler) SendBatch(c *gin.Context) {
 	var req models.BatchPushRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -209,20 +209,20 @@ func (h *PushHandler) SendBatch(c *gin.Context) {
 		return
 	}
 
-	// 解析device_keys（逗号分隔）
-	deviceKeys := strings.Split(req.DeviceKeys, ",")
-	if len(deviceKeys) == 0 {
+	// 解析device_ids（逗号分隔）
+	deviceIds := strings.Split(req.DeviceIds, ",")
+	if len(deviceIds) == 0 {
 		RespondError(c, http.StatusBadRequest, models.InvalidParams, "No device keys provided")
 		return
 	}
 
-	if len(deviceKeys) > 1000 {
+	if len(deviceIds) > 1000 {
 		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Too many devices (max 1000)")
 		return
 	}
 
 	// 批量获取push_token
-	pushTokens, err := h.deviceHandler.GetPushTokens(deviceKeys)
+	pushTokens, err := h.deviceHandler.GetPushTokens(deviceIds)
 	if err != nil {
 		RespondError(c, http.StatusInternalServerError, models.SystemError, "Failed to get device tokens")
 		return
@@ -257,7 +257,7 @@ func (h *PushHandler) SendBatch(c *gin.Context) {
 	RespondSuccess(c, http.StatusOK, gin.H{
 		"message":      "Batch notification sent successfully",
 		"total_sent":   len(pushTokens),
-		"total_failed": len(deviceKeys) - len(pushTokens),
+		"total_failed": len(deviceIds) - len(pushTokens),
 	})
 }
 

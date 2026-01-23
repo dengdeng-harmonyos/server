@@ -37,7 +37,7 @@ func (db *Database) InitTables() error {
 		// 设备表（简化版，去除用户关联）
 		`CREATE TABLE IF NOT EXISTS devices (
 			id SERIAL PRIMARY KEY,
-			device_key VARCHAR(64) UNIQUE NOT NULL,
+			device_id VARCHAR(64) UNIQUE NOT NULL,
 			push_token TEXT NOT NULL UNIQUE,
 			device_type VARCHAR(50),
 			os_version VARCHAR(50),
@@ -61,7 +61,7 @@ func (db *Database) InitTables() error {
 		)`,
 
 		// 创建索引
-		`CREATE INDEX IF NOT EXISTS idx_devices_device_key ON devices(device_key)`,
+		`CREATE INDEX IF NOT EXISTS idx_devices_device_id ON devices(device_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_devices_is_active ON devices(is_active)`,
 		`CREATE INDEX IF NOT EXISTS idx_push_stats_date ON push_statistics(date)`,
 	}

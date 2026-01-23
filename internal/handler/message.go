@@ -38,17 +38,17 @@ type PendingMessage struct {
 // GetPendingMessages 获取待接收的消息
 // GET /api/messages/pending
 func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
-	// 从请求头获取 device_key
-	deviceKey := c.GetHeader("X-Device-Key")
-	if deviceKey == "" {
+	// 从请求头获取 device_id
+	deviceId := c.GetHeader("X-Device-Id")
+	if deviceId == "" {
 		// 也尝试从 Authorization header 获取
 		authHeader := c.GetHeader("Authorization")
 		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-			deviceKey = authHeader[7:]
+			deviceId = authHeader[7:]
 		}
 	}
 
-	if deviceKey == "" {
+	if deviceId == "" {
 		RespondError(c, http.StatusUnauthorized, models.Unauthorized, "Missing device key")
 		return
 	}
@@ -58,15 +58,15 @@ func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
 		SELECT id::TEXT, server_name, encrypted_aes_key, encrypted_content, iv, 
 		       EXTRACT(EPOCH FROM created_at)::BIGINT * 1000 as timestamp
 		FROM pending_messages
-		WHERE device_key = $1 
+		WHERE device_id = $1 
 		  AND delivered = false 
 		  AND expires_at > NOW()
 		ORDER BY created_at ASC
 		LIMIT 100
-	`, deviceKey)
+	`, deviceId)
 
 	if err != nil {
-		logger.ErrorWithStack(err, "Failed to query pending messages for device: %s", deviceKey)
+		logger.ErrorWithStack(err, "Failed to query pending messages for device: %s", deviceId)
 		RespondError(c, http.StatusInternalServerError, models.SystemError, "Failed to query messages: "+err.Error())
 		return
 	}
@@ -87,8 +87,8 @@ func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
 		_, _ = h.db.Exec(`
 			UPDATE pending_messages 
 			SET notification_sent = true 
-			WHERE device_key = $1 AND delivered = false
-		`, deviceKey)
+			WHERE device_id = $1 AND delivered = false
+		`, deviceId)
 	}
 
 	RespondSuccess(c, http.StatusOK, gin.H{
@@ -105,15 +105,15 @@ type ConfirmMessagesRequest struct {
 // ConfirmMessages 确认消息已收到
 // POST /api/messages/confirm
 func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
-	deviceKey := c.GetHeader("X-Device-Key")
-	if deviceKey == "" {
+	deviceId := c.GetHeader("X-Device-Id")
+	if deviceId == "" {
 		authHeader := c.GetHeader("Authorization")
 		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-			deviceKey = authHeader[7:]
+			deviceId = authHeader[7:]
 		}
 	}
 
-	if deviceKey == "" {
+	if deviceId == "" {
 		RespondError(c, http.StatusUnauthorized, models.Unauthorized, "Missing device key")
 		return
 	}
@@ -121,7 +121,7 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 	var req ConfirmMessagesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		logger.ErrorWithStack(err, "Failed to bind confirm request from device: %s", deviceKey)
+		logger.ErrorWithStack(err, "Failed to bind confirm request from device: %s", deviceId)
 		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid request: "+err.Error())
 
 		return
@@ -138,13 +138,13 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 	query := `
 		UPDATE pending_messages 
 		SET delivered = true, confirmed_at = $1
-		WHERE device_key = $2 AND id::TEXT = ANY($3)
+		WHERE device_id = $2 AND id::TEXT = ANY($3)
 	`
 
-	result, err := h.db.Exec(query, time.Now(), deviceKey, pq.Array(req.MessageIDs))
+	result, err := h.db.Exec(query, time.Now(), deviceId, pq.Array(req.MessageIDs))
 	if err != nil {
 
-		logger.ErrorWithStack(err, "Failed to confirm messages for device: %s, messageIDs: %v", deviceKey, req.MessageIDs)
+		logger.ErrorWithStack(err, "Failed to confirm messages for device: %s, messageIDs: %v", deviceId, req.MessageIDs)
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to confirm messages: "+err.Error())
 
 		return
@@ -153,7 +153,7 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 	rowsAffected, _ := result.RowsAffected()
 
 
-	logger.Info("Confirmed %d messages for device: %s", rowsAffected, deviceKey)
+	logger.Info("Confirmed %d messages for device: %s", rowsAffected, deviceId)
 	RespondSuccess(c, http.StatusOK, gin.H{
 		"confirmedCount": rowsAffected,
 	})
@@ -161,7 +161,7 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 
 // SaveEncryptedMessage 保存加密消息到数据库
 func (h *MessageHandler) SaveEncryptedMessage(
-	deviceKey string,
+	deviceId string,
 	serverName string,
 	encryptedMsg *service.EncryptedMessage,
 ) error {
@@ -169,9 +169,9 @@ func (h *MessageHandler) SaveEncryptedMessage(
 
 	_, err := h.db.Exec(`
 		INSERT INTO pending_messages 
-		(device_key, server_name, encrypted_aes_key, encrypted_content, iv, expires_at)
+		(device_id, server_name, encrypted_aes_key, encrypted_content, iv, expires_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
-	`, deviceKey, serverName, encryptedMsg.EncryptedAESKey,
+	`, deviceId, serverName, encryptedMsg.EncryptedAESKey,
 		encryptedMsg.EncryptedContent, encryptedMsg.IV, expiresAt)
 
 	return err

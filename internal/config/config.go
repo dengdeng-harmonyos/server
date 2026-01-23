@@ -37,7 +37,7 @@ type HuaweiPushConfig struct {
 
 type SecurityConfig struct {
 	EncryptionKey         string // Push Token加密密钥（32字节）
-	DeviceKeyTTL          int    // Device Key有效期（秒）
+	DeviceIdTTL           int    // Device Id有效期（秒）
 	MaxDailyPushPerDevice int    // 每设备每日最大推送数
 }
 
@@ -101,7 +101,7 @@ func Load() *Config {
 		},
 		Security: SecurityConfig{
 			EncryptionKey:         getEncryptionKey(),
-			DeviceKeyTTL:          2592000, // 30天
+			DeviceIdTTL:           2592000, // 30天
 			MaxDailyPushPerDevice: 100,
 		},
 	}
