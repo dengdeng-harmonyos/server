@@ -15,6 +15,7 @@ type DeviceHandler struct {
 	db         *database.Database
 	encryption *service.EncryptionService
 	config     config.SecurityConfig
+	serverName string // 服务器名称
 }
 
 func NewDeviceHandler(db *database.Database, cfg config.Config) (*DeviceHandler, error) {
@@ -27,6 +28,7 @@ func NewDeviceHandler(db *database.Database, cfg config.Config) (*DeviceHandler,
 		db:         db,
 		encryption: encryption,
 		config:     cfg.Security,
+		serverName: cfg.Server.ServerName,
 	}, nil
 }
 
@@ -67,6 +69,7 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 
 		RespondSuccess(c, http.StatusOK, gin.H{
 			"device_key": existingDevice.DeviceKey,
+			"server_name": h.serverName,
 			"message":    "Device updated successfully",
 		})
 		return
@@ -88,6 +91,7 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 
 	RespondSuccess(c, http.StatusOK, gin.H{
 		"device_key": deviceKey,
+		"server_name": h.serverName,
 		"message":    "Device registered successfully",
 	})
 }
