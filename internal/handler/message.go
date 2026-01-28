@@ -103,7 +103,7 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 	var req ConfirmMessagesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		logger.ErrorWithStack(err, "Failed to bind confirm request from device: %s", deviceId)
+		logger.ErrorWithStack(err, "Failed to bind confirm request from device: %s", req.DeviceId)
 		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid request: "+err.Error())
 
 		return
