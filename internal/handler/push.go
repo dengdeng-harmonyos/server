@@ -41,7 +41,7 @@ func NewPushHandler(db *database.Database, deviceHandler *DeviceHandler, cfg con
 }
 
 // SendNotification 发送通知消息（GET方式）
-// GET /api/v1/push/notification?device_id=xxx&title=xxx&body=xxx&data={"key":"value"}
+// GET /api/v1/push/notification?device_id=xxx&title=xxx&content=xxx&data=[{"key":"xxx","value":"xxx"}]
 func (h *PushHandler) SendNotification(c *gin.Context) {
 	var req models.PushNotificationRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -59,19 +59,15 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 		return
 	}
 
-	// 解析额外数据
-	var data map[string]interface{}
+	// 解析额外数据（保持数组格式）
+	var dataArray []map[string]interface{}
 	if req.Data != "" {
-		if err := json.Unmarshal([]byte(req.Data), &data); err != nil {
-			RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid data format")
+		// 解析为数组格式 [{"key":"xxx", "value":"xxx"}]
+		if err := json.Unmarshal([]byte(req.Data), &dataArray); err != nil {
+			RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid data format, expected array of {key, value}")
 			return
 		}
-	} else {
-		data = make(map[string]interface{})
 	}
-
-	// 添加服务器标识到data中
-	data["__server_name"] = h.serverName
 
 	// 获取设备公钥
 	publicKey, err := h.deviceHandler.GetPublicKey(req.DeviceId)
@@ -83,9 +79,10 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 
 	// 1. 加密消息内容
 	messageContent := service.MessageContent{
-		Title:   req.Title,
-		Content: req.Body,
-		Data:    data,
+		Title:      req.Title,
+		Content:    req.Content,
+		Data:       dataArray,
+		ServerName: h.serverName,
 	}
 	encryptedMsg, err := h.cryptoService.EncryptMessage(publicKey, messageContent)
 	if err != nil {
@@ -99,7 +96,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 		"type":        "new_message",
 		"server_name": h.serverName,
 	}
-	err = h.pushService.SendNotification(pushToken, req.Title, req.Body, notificationData)
+	err = h.pushService.SendNotification(pushToken, req.Title, req.Content, notificationData)
 	if err != nil {
 		logger.ErrorWithStack(err, "Failed to send push notification for device: %s", req.DeviceId)
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to send notification: "+err.Error())
