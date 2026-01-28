@@ -36,17 +36,10 @@ type PendingMessage struct {
 }
 
 // GetPendingMessages 获取待接收的消息
-// GET /api/messages/pending
+// GET /api/messages/pending?device_id=xxx
 func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
-	// 从请求头获取 device_id
-	deviceId := c.GetHeader("X-Device-Id")
-	if deviceId == "" {
-		// 也尝试从 Authorization header 获取
-		authHeader := c.GetHeader("Authorization")
-		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-			deviceId = authHeader[7:]
-		}
-	}
+	// 从 query 获取 device_id
+	deviceId := c.Query("device_id")
 
 	if deviceId == "" {
 		RespondError(c, http.StatusUnauthorized, models.Unauthorized, "Missing device key")
@@ -99,31 +92,24 @@ func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
 
 // ConfirmMessagesRequest 确认消息请求
 type ConfirmMessagesRequest struct {
+	DeviceId   string   `json:"device_id" binding:"required"`
 	MessageIDs []string `json:"messageIds" binding:"required"`
 }
 
 // ConfirmMessages 确认消息已收到
 // POST /api/messages/confirm
 func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
-	deviceId := c.GetHeader("X-Device-Id")
-	if deviceId == "" {
-		authHeader := c.GetHeader("Authorization")
-		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-			deviceId = authHeader[7:]
-		}
-	}
-
-	if deviceId == "" {
-		RespondError(c, http.StatusUnauthorized, models.Unauthorized, "Missing device key")
-		return
-	}
-
 	var req ConfirmMessagesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 
 		logger.ErrorWithStack(err, "Failed to bind confirm request from device: %s", deviceId)
 		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid request: "+err.Error())
 
+		return
+	}
+
+	if req.DeviceId == "" {
+		RespondError(c, http.StatusUnauthorized, models.Unauthorized, "Missing device key")
 		return
 	}
 
@@ -136,15 +122,14 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 
 	// 构建 SQL IN 子句 - 使用 pq.Array 将字符串数组转换为 PostgreSQL 数组
 	query := `
-		UPDATE pending_messages 
-		SET delivered = true, confirmed_at = $1
-		WHERE device_id = $2 AND id::TEXT = ANY($3)
+		DELETE FROM pending_messages
+		WHERE device_id = $1 AND id::TEXT = ANY($2)
 	`
 
-	result, err := h.db.Exec(query, time.Now(), deviceId, pq.Array(req.MessageIDs))
+	result, err := h.db.Exec(query, req.DeviceId, pq.Array(req.MessageIDs))
 	if err != nil {
 
-		logger.ErrorWithStack(err, "Failed to confirm messages for device: %s, messageIDs: %v", deviceId, req.MessageIDs)
+		logger.ErrorWithStack(err, "Failed to confirm messages for device: %s, messageIDs: %v", req.DeviceId, req.MessageIDs)
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to confirm messages: "+err.Error())
 
 		return
@@ -153,7 +138,7 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 	rowsAffected, _ := result.RowsAffected()
 
 
-	logger.Info("Confirmed %d messages for device: %s", rowsAffected, deviceId)
+	logger.Info("Confirmed %d messages for device: %s", rowsAffected, req.DeviceId)
 	RespondSuccess(c, http.StatusOK, gin.H{
 		"confirmedCount": rowsAffected,
 	})
