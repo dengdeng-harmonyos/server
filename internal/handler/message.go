@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"time"
+
 	"github.com/dengdeng-harmenyos/server/internal/logger"
 	"github.com/dengdeng-harmenyos/server/internal/models"
 	"github.com/dengdeng-harmenyos/server/internal/service"
@@ -136,7 +137,6 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 	}
 
 	rowsAffected, _ := result.RowsAffected()
-
 
 	logger.Info("Confirmed %d messages for device: %s", rowsAffected, req.DeviceId)
 	RespondSuccess(c, http.StatusOK, gin.H{
