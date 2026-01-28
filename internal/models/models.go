@@ -49,7 +49,7 @@ type DeviceRegisterResponse struct {
 type PushNotificationRequest struct {
 	DeviceId  string `form:"device_id" binding:"required"`
 	Title     string `form:"title" binding:"required"`
-	Body      string `form:"body" binding:"required"`
+	Content   string `form:"content" binding:"required"`
 	Data      string `form:"data"` // JSON字符串
 }
 

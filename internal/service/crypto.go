@@ -23,9 +23,10 @@ type EncryptedMessage struct {
 
 // MessageContent 原始消息内容
 type MessageContent struct {
-	Title   string                 `json:"title"`
-	Content string                 `json:"content"`
-	Data    map[string]interface{} `json:"data"`
+	Title      string                   `json:"title"`
+	Content    string                   `json:"content"`
+	Data       []map[string]interface{} `json:"data"`
+	ServerName string                   `json:"__server_name"`
 }
 
 // CryptoService 加密服务
