@@ -33,7 +33,7 @@ type PendingMessage struct {
 	EncryptedAESKey  string `json:"encryptedAESKey"`
 	EncryptedContent string `json:"encryptedContent"`
 	IV               string `json:"iv"`
-	CreatedAt        string `json:"createdAt"`        // ISO 8601格式时间（带时区UTC）
+	CreatedAt        string `json:"createdAt"` // ISO 8601格式时间（带时区UTC）
 }
 
 // GetPendingMessages 获取待接收的消息
@@ -70,7 +70,7 @@ func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
 	messages := []PendingMessage{}
 	for rows.Next() {
 		var msg PendingMessage
-		if err := rows.Scan(&msg.ID, &msg.ServerName, &, &msg.CreatedAtmsg.EncryptedAESKey,
+		if err := rows.Scan(&msg.ID, &msg.ServerName, &msg.EncryptedAESKey,
 			&msg.EncryptedContent, &msg.IV, &msg.CreatedAt); err != nil {
 			continue
 		}
