@@ -1,31 +1,56 @@
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
+
+// ISO8601Time 自定义时间类型，自动序列化为ISO 8601格式
+type ISO8601Time time.Time
+
+// MarshalJSON 将时间序列化为ISO 8601格式（UTC时区）
+func (t ISO8601Time) MarshalJSON() ([]byte, error) {
+	return json.Marshal(time.Time(t).UTC().Format("2006-01-02T15:04:05.000Z"))
+}
+
+// UnmarshalJSON 从ISO 8601格式反序列化时间
+func (t *ISO8601Time) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	parsed, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return err
+	}
+	*t = ISO8601Time(parsed)
+	return nil
+}
 
 // Device 设备信息（简化版）
 type Device struct {
-	ID           int       `json:"id"`
-	DeviceId     string    `json:"device_id"`  // 服务端生成的随机ID（对外使用）
-	PushToken    string    `json:"-"`           // 华为Push Token（加密存储，不对外暴露）
-	PublicKey    string    `json:"-"`           // RSA公钥(PEM格式，不对外暴露)
-	DeviceType   string    `json:"device_type"` // phone/tablet/watch
-	OSVersion    string    `json:"os_version"`  // HarmonyOS版本
-	AppVersion   string    `json:"app_version"` // App版本
-	IsActive     bool      `json:"is_active"`
-	LastActiveAt time.Time `json:"last_active_at"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           int          `json:"id"`
+	DeviceId     string       `json:"device_id"`  // 服务端生成的随机ID（对外使用）
+	PushToken    string       `json:"-"`           // 华为Push Token（加密存储，不对外暴露）
+	PublicKey    string       `json:"-"`           // RSA公钥(PEM格式，不对外暴露)
+	DeviceType   string       `json:"device_type"` // phone/tablet/watch
+	OSVersion    string       `json:"os_version"`  // HarmonyOS版本
+	AppVersion   string       `json:"app_version"` // App版本
+	IsActive     bool         `json:"is_active"`
+	LastActiveAt ISO8601Time  `json:"last_active_at"` // ISO 8601格式
+	CreatedAt    ISO8601Time  `json:"created_at"`     // ISO 8601格式
+	UpdatedAt    ISO8601Time  `json:"updated_at"`     // ISO 8601格式
 }
 
 // PushStatistics 推送统计（仅统计数据，不记录内容）
 type PushStatistics struct {
-	ID           int       `json:"id"`
-	Date         time.Time `json:"date"`
-	PushType     string    `json:"push_type"` // notification/form/background
-	TotalCount   int       `json:"total_count"`
-	SuccessCount int       `json:"success_count"`
-	FailedCount  int       `json:"failed_count"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID           int          `json:"id"`
+	Date         time.Time    `json:"date"`          // 日期保持原格式
+	PushType     string       `json:"push_type"`     // notification/form/background
+	TotalCount   int          `json:"total_count"`
+	SuccessCount int          `json:"success_count"`
+	FailedCount  int          `json:"failed_count"`
+	CreatedAt    ISO8601Time  `json:"created_at"`    // ISO 8601格式
 }
 
 // DeviceRegisterRequest 设备注册请求

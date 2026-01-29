@@ -5,10 +5,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/dengdeng-harmenyos/server/internal/config"
-	"github.com/dengdeng-harmenyos/server/internal/database"
-	"github.com/dengdeng-harmenyos/server/internal/models"
-	"github.com/dengdeng-harmenyos/server/internal/service"
+	"github.com/dengdeng-harmonyos/server/internal/config"
+	"github.com/dengdeng-harmonyos/server/internal/database"
+	"github.com/dengdeng-harmonyos/server/internal/models"
+	"github.com/dengdeng-harmonyos/server/internal/service"
 )
 
 type DeviceHandler struct {

@@ -44,9 +44,9 @@ jobs:
 
           # 使用ldflags注入secrets到二进制文件（静态链接）
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "\
-            -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedAgConnectJSON=$AGCONNECT_BASE64' \
-            -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedPrivateJSON=$PRIVATE_BASE64' \
-            -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedEncryptionKey=$ENCRYPTION_KEY_BASE64' \
+            -X 'github.com/dengdeng-harmonyos/server/internal/config.embeddedAgConnectJSON=$AGCONNECT_BASE64' \
+            -X 'github.com/dengdeng-harmonyos/server/internal/config.embeddedPrivateJSON=$PRIVATE_BASE64' \
+            -X 'github.com/dengdeng-harmonyos/server/internal/config.embeddedEncryptionKey=$ENCRYPTION_KEY_BASE64' \
             -s -w" \
             -o bin/dengdeng-server \
             cmd/server/main.go
@@ -105,7 +105,7 @@ jobs:
           # 镜像名称格式: username/imagename 或 registry/username/imagename
           images: ${{ secrets.DOCKER_USERNAME }}/dengdeng-server
           tags: |
-            type=raw,value={{date 'YYYYMMDD' tz='Asia/Shanghai'}}
+            type=raw,value={{date 'YYYYMMDD' tz='UTC'}}
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}

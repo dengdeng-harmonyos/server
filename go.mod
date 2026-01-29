@@ -1,4 +1,4 @@
-module github.com/dengdeng-harmenyos/server
+module github.com/dengdeng-harmonyos/server
 
 go 1.21
 
