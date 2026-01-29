@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/dengdeng-harmenyos/server/internal/models"
+	"github.com/dengdeng-harmonyos/server/internal/models"
 	"github.com/gin-gonic/gin"
 )
 

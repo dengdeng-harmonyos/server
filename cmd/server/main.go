@@ -3,11 +3,11 @@ package main
 import (
 	"log"
 
-	"github.com/dengdeng-harmenyos/server/internal/config"
-	"github.com/dengdeng-harmenyos/server/internal/database"
-	"github.com/dengdeng-harmenyos/server/internal/handler"
-	"github.com/dengdeng-harmenyos/server/internal/logger"
-	"github.com/dengdeng-harmenyos/server/internal/middleware"
+	"github.com/dengdeng-harmonyos/server/internal/config"
+	"github.com/dengdeng-harmonyos/server/internal/database"
+	"github.com/dengdeng-harmonyos/server/internal/handler"
+	"github.com/dengdeng-harmonyos/server/internal/logger"
+	"github.com/dengdeng-harmonyos/server/internal/middleware"
 	"github.com/gin-gonic/gin"
 )
 

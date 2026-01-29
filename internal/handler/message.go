@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dengdeng-harmenyos/server/internal/logger"
-	"github.com/dengdeng-harmenyos/server/internal/models"
-	"github.com/dengdeng-harmenyos/server/internal/service"
+	"github.com/dengdeng-harmonyos/server/internal/logger"
+	"github.com/dengdeng-harmonyos/server/internal/models"
+	"github.com/dengdeng-harmonyos/server/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
 )
@@ -33,7 +33,7 @@ type PendingMessage struct {
 	EncryptedAESKey  string `json:"encryptedAESKey"`
 	EncryptedContent string `json:"encryptedContent"`
 	IV               string `json:"iv"`
-	Timestamp        int64  `json:"timestamp"`
+	CreatedAt        string `json:"createdAt"`        // ISO 8601格式时间（带时区UTC）
 }
 
 // GetPendingMessages 获取待接收的消息
@@ -48,9 +48,10 @@ func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
 	}
 
 	// 查询未投递的消息
+	// 注意：TIMESTAMPTZ自动处理时区，返回ISO 8601格式（带时区）
 	rows, err := h.db.Query(`
 		SELECT id::TEXT, server_name, encrypted_aes_key, encrypted_content, iv, 
-		       EXTRACT(EPOCH FROM created_at)::BIGINT * 1000 as timestamp
+		       to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at
 		FROM pending_messages
 		WHERE device_id = $1 
 		  AND delivered = false 
@@ -69,8 +70,8 @@ func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
 	messages := []PendingMessage{}
 	for rows.Next() {
 		var msg PendingMessage
-		if err := rows.Scan(&msg.ID, &msg.ServerName, &msg.EncryptedAESKey,
-			&msg.EncryptedContent, &msg.IV, &msg.Timestamp); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.ServerName, &, &msg.CreatedAtmsg.EncryptedAESKey,
+			&msg.EncryptedContent, &msg.IV, &msg.CreatedAt); err != nil {
 			continue
 		}
 		messages = append(messages, msg)

@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dengdeng-harmenyos/server/internal/config"
-	"github.com/dengdeng-harmenyos/server/internal/logger"
+	"github.com/dengdeng-harmonyos/server/internal/config"
+	"github.com/dengdeng-harmonyos/server/internal/logger"
 	"github.com/golang-jwt/jwt/v5"
 )
 

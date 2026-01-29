@@ -55,9 +55,9 @@ echo "🔧 Compiling with ldflags..."
 cd "$PROJECT_ROOT"
 
 go build -ldflags "\
-  -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedAgConnectJSON=$AGCONNECT_JSON' \
-  -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedPrivateJSON=$PRIVATE_JSON' \
-  -X 'github.com/dengdeng-harmenyos/server/internal/config.embeddedEncryptionKey=$ENCRYPTION_KEY' \
+  -X 'github.com/dengdeng-harmonyos/server/internal/config.embeddedAgConnectJSON=$AGCONNECT_JSON' \
+  -X 'github.com/dengdeng-harmonyos/server/internal/config.embeddedPrivateJSON=$PRIVATE_JSON' \
+  -X 'github.com/dengdeng-harmonyos/server/internal/config.embeddedEncryptionKey=$ENCRYPTION_KEY' \
   -s -w" \
   -o bin/dengdeng-server \
   cmd/server/main.go

@@ -1,9 +1,9 @@
 # 噔噔推送服务 (Dengdeng Push Server)
 
-[![GitHub stars](https://img.shields.io/github/stars/dengdeng-harmenyos/server?style=social)](https://github.com/dengdeng-harmenyos/server)
-[![License](https://img.shields.io/github/license/dengdeng-harmenyos/server)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/dengdeng-harmonyos/server?style=social)](https://github.com/dengdeng-harmonyos/server)
+[![License](https://img.shields.io/github/license/dengdeng-harmonyos/server)](LICENSE)
 [![Docker Pulls](https://img.shields.io/docker/pulls/ricwang/dengdeng-server)](https://hub.docker.com/r/ricwang/dengdeng-server)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/dengdeng-harmenyos/server)](go.mod)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/dengdeng-harmonyos/server)](go.mod)
 
 [English](README_EN.md) | 简体中文
 
@@ -23,6 +23,7 @@
 ## ✨ 核心特性
 
 ### 安全性
+
 - 🔒 AES-256-GCM 加密算法保护敏感数据
 - 🎲 使用加密安全的随机数生成器 (crypto/rand)
 - 🔐 RSA 公钥支持（可选，用于客户端消息加密）
@@ -30,6 +31,7 @@
 - 🚦 速率限制，防止滥用（每设备每日最大推送数限制）
 
 ### 隐私保护
+
 - 📝 不存储推送消息内容
 - 🎭 设备标识完全匿名化
 - 📊 统计数据聚合，无法追溯到具体设备
@@ -37,6 +39,7 @@
 - 🔍 数据库字段最小化原则
 
 ### 功能特性
+
 - 📬 支持通知消息推送 (Notification)
 - 🃏 支持卡片刷新 (Form Update)
 - 🔄 支持后台推送 (Background Push)
@@ -94,7 +97,7 @@ services:
       - PUSH_TOKEN_ENCRYPTION_KEY=${PUSH_TOKEN_ENCRYPTION_KEY}
       - SERVER_NAME=噔噔推送服务
     ports:
-      - "8080:8080"
+      - '8080:8080'
     volumes:
       - push-data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -125,7 +128,7 @@ docker logs -f push-server
 
 ```bash
 # 克隆仓库
-git clone https://github.com/dengdeng-harmenyos/server.git
+git clone https://github.com/dengdeng-harmonyos/server.git
 cd server
 
 # 生成密钥
@@ -140,6 +143,7 @@ docker-compose up -d --build
 完整的 API 接口文档请查看：[API.md](API.md)
 
 主要接口包括：
+
 - **设备注册** - 注册设备并获取 Device Key
 - **推送通知** - 发送通知栏消息
 - **卡片刷新** - 更新 HarmonyOS 卡片
@@ -151,19 +155,19 @@ docker-compose up -d --build
 
 ### 必需配置
 
-| 环境变量 | 说明 | 示例 |
-|---------|------|------|
+| 环境变量                    | 说明                         | 示例                           |
+| --------------------------- | ---------------------------- | ------------------------------ |
 | `PUSH_TOKEN_ENCRYPTION_KEY` | Push Token加密密钥（32字节） | `openssl rand -base64 32` 生成 |
 
 ### 可选配置
 
-| 环境变量 | 说明 | 默认值 |
-|---------|------|--------|
-| `SERVER_NAME` | 服务器名称 | `噔噔推送服务` |
-| `PORT` | 服务端口 | `8080` |
-| `GIN_MODE` | 运行模式 | `release` |
-| `DEVICE_ID_TTL` | Device Id有效期（秒） | `31536000` (1年) |
-| `MAX_DAILY_PUSH_PER_DEVICE` | 每设备每日最大推送数 | `1000` |
+| 环境变量                    | 说明                  | 默认值           |
+| --------------------------- | --------------------- | ---------------- |
+| `SERVER_NAME`               | 服务器名称            | `噔噔推送服务`   |
+| `PORT`                      | 服务端口              | `8080`           |
+| `GIN_MODE`                  | 运行模式              | `release`        |
+| `DEVICE_ID_TTL`             | Device Id有效期（秒） | `31536000` (1年) |
+| `MAX_DAILY_PUSH_PER_DEVICE` | 每设备每日最大推送数  | `1000`           |
 
 ### 内部数据库配置（无需修改）
 
@@ -326,8 +330,8 @@ cd database
 
 ## 📞 联系方式
 
-- 项目主页：[https://github.com/dengdeng-harmenyos/server](https://github.com/dengdeng-harmenyos/server)
-- 问题反馈：[GitHub Issues](https://github.com/dengdeng-harmenyos/server/issues)
+- 项目主页：[https://github.com/dengdeng-harmonyos/server](https://github.com/dengdeng-harmonyos/server)
+- 问题反馈：[GitHub Issues](https://github.com/dengdeng-harmonyos/server/issues)
 - Docker 镜像：[Docker Hub](https://hub.docker.com/r/ricwang/dengdeng-server)
 
 ## 🎯 路线图
@@ -344,7 +348,7 @@ cd database
 
 ## 📊 项目趋势
 
-[![Star History Chart](https://api.star-history.com/svg?repos=dengdeng-harmenyos/server&type=Date)](https://star-history.com/#dengdeng-harmenyos/server&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=dengdeng-harmonyos/server&type=Date)](https://star-history.com/#dengdeng-harmonyos/server&Date)
 
 **⚠️ 安全提示**：本服务仅提供推送基础设施，不存储任何用户数据。请确保你的加密密钥安全，不要与他人共享。
 
