@@ -3,12 +3,12 @@ package handler
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/dengdeng-harmonyos/server/internal/config"
 	"github.com/dengdeng-harmonyos/server/internal/database"
 	"github.com/dengdeng-harmonyos/server/internal/models"
 	"github.com/dengdeng-harmonyos/server/internal/service"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type DeviceHandler struct {
@@ -68,9 +68,9 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 		}
 
 		RespondSuccess(c, http.StatusOK, gin.H{
-			"device_id": existingDevice.DeviceId,
+			"device_id":   existingDevice.DeviceId,
 			"server_name": h.serverName,
-			"message":    "Device updated successfully",
+			"message":     "Device updated successfully",
 		})
 		return
 	}
@@ -90,9 +90,9 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 	}
 
 	RespondSuccess(c, http.StatusOK, gin.H{
-		"device_id": deviceId,
+		"device_id":   deviceId,
 		"server_name": h.serverName,
-		"message":    "Device registered successfully",
+		"message":     "Device registered successfully",
 	})
 }
 
@@ -146,7 +146,7 @@ func (h *DeviceHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	// 先获取设备的push_token用于调用华为删除接口
+	// 先获取设备的push_token（当前仅用于存在性校验；如未来需要调用华为删除接口再解密使用）
 	var encryptedToken string
 	err := h.db.DB.QueryRow(`
 		SELECT push_token FROM devices 
@@ -156,13 +156,6 @@ func (h *DeviceHandler) Delete(c *gin.Context) {
 	if err != nil {
 		// 设备不存在
 		RespondError(c, http.StatusNotFound, models.DataNotFound, "Device not found")
-		return
-	}
-
-	// 解密push_token
-	pushToken, err := h.encryption.Decrypt(encryptedToken)
-	if err != nil {
-		RespondError(c, http.StatusInternalServerError, models.SystemError, "Failed to decrypt push token")
 		return
 	}
 
@@ -193,8 +186,7 @@ func (h *DeviceHandler) Delete(c *gin.Context) {
 	}
 
 	RespondSuccess(c, http.StatusOK, gin.H{
-		"message":    "Device deleted successfully",
-		"push_token": pushToken,
+		"message": "Device deleted successfully",
 	})
 }
 
