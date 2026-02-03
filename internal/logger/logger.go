@@ -121,7 +121,7 @@ func GinLogger() gin.HandlerFunc {
 		if len(c.Errors) > 0 {
 			for _, err := range c.Errors {
 				Error("Request error: %v", err.Err)
-				Error("Error type: %s, Meta: %v", err.Type, err.Meta)
+				Error("Error type: %v, Meta: %v", err.Type, err.Meta)
 			}
 		}
 	}
