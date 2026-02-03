@@ -156,13 +156,15 @@ type AlertPayload struct {
 
 // Notification 通知消息结构体
 type Notification struct {
-	Category    string      `json:"category"`        // 通知消息类型（必填）
-	Title       string      `json:"title"`           // 通知标题（必填）
-	Body        string      `json:"body"`            // 通知内容（必填）
-	Image       string      `json:"image,omitempty"` // 右侧大图标URL
-	ClickAction ClickAction `json:"clickAction"`     // 点击消息动作（必填）
-	Badge       *Badge      `json:"badge,omitempty"` // 通知消息角标
-	Sound       string      `json:"sound,omitempty"` // 自定义铃声
+	Category        string      `json:"category"`        // 通知消息类型（必填）
+	Title           string      `json:"title"`           // 通知标题（必填）
+	Body            string      `json:"body"`            // 通知内容（必填）
+	Image           string      `json:"image,omitempty"` // 右侧大图标URL
+	Style           string      `json:"style,omitempty"` // 通知消息样式：0：普通通知（默认值）3：多行文本样式（使用场景请参见开发指南）
+	ClickAction     ClickAction `json:"clickAction"`     // 点击消息动作（必填）
+	InboxContent    []string    `json:"inboxContent,omitempty"` // 收件箱样式内容数组
+	Badge           *Badge      `json:"badge,omitempty"` // 通知消息角标
+	Sound           string      `json:"sound,omitempty"` // 自定义铃声
 }
 
 // ClickAction 点击行为
@@ -236,15 +238,26 @@ func (s *HuaweiPushService) SendNotification(pushToken, title, body string, data
 		logger.Debug("  Extra data: %+v", data)
 	}
 
+	notification := Notification{
+		Category:    "WORK", // 默认使用工作提醒类型，可根据业务需求修改
+		Title:       "[工作提醒]" + title,
+		Body:        body,
+		ClickAction: clickAction,
+		Badge:       &Badge{AddNum: 1}, // 默认角标加1
+	}
+
+	// 判断body是否包含\n，是的话使用多行文本样式
+	if strings.Contains(body, "\n") {
+		notification.Style = "3" // 多行文本样式
+		notification.Body = ""   // 多行文本样式不使用body字段
+		notification.InboxContent = strings.Split(body, "\n")
+	} else {
+		notification.Body = body
+	}
+
 	// 构建通知消息payload
 	payload := AlertPayload{
-		Notification: Notification{
-			Category:    "WORK", // 默认使用工作提醒类型，可根据业务需求修改
-			Title:       "[工作提醒]" + title,
-			Body:        body,
-			ClickAction: clickAction,
-			Badge:       &Badge{AddNum: 1}, // 默认角标加1
-		},
+		Notification: notification,
 	}
 
 	// 默认使用测试消息选项
