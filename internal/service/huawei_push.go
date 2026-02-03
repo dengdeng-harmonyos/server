@@ -252,7 +252,6 @@ func (s *HuaweiPushService) SendNotification(pushToken, title, body string, data
 
 	if strings.Contains(processedBody, "\n") {
 		notification.Style = 3   // 多行文本样式
-		notification.Body = ""   // 多行文本样式不使用body字段
 		lines := strings.Split(processedBody, "\n")
 		if len(lines) > 3 {
 			lines = lines[:3]
