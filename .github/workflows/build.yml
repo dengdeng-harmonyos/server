@@ -108,21 +108,6 @@ jobs:
             docker tag dengdeng-server:test-${{ github.sha }} dengdeng-server:test-latest
 
             sh /opt/dengdeng-deploy-test.sh
-            # 停止并删除旧容器
-            docker rm -f push-server push-server-1 push-server-3 || true
-
-            # 运行新容器
-            cd /opt/dengdeng && ./deploy.sh
-
-            cd /opt/dengdeng-1 && ./deploy.sh
-
-            cd /opt/dengdeng-3 && ./deploy.sh
-
-            # 清理临时文件
-            rm -f /tmp/dengdeng-server-test.tar
-
-            # 清理旧镜像
-            docker image prune -f
 
             echo "测试环境部署完成"
 
@@ -184,15 +169,10 @@ jobs:
             docker load -i /tmp/dengdeng-server-prod.tar
 
             # 停止并删除旧容器
-            docker stop dengdeng-prod || true
-            docker rm dengdeng-prod || true
+            docker rm -f push-server || true
 
             # 运行新容器
-            docker run -d \
-              --name dengdeng-prod \
-              --restart unless-stopped \
-              -p ${{ secrets.PROD_SERVER_PORT_MAPPING }} \
-              dengdeng-server:prod-${{ github.sha }}
+            cd /opt/dengdeng && ./deploy.sh
 
             # 清理临时文件
             rm -f /tmp/dengdeng-server-prod.tar
