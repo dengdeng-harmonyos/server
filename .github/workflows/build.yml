@@ -82,6 +82,8 @@ jobs:
           chmod +x bin/dengdeng-server
           docker build -f Dockerfile.ci -t dengdeng-server:test-${{ github.sha }} .
           docker save dengdeng-server:test-${{ github.sha }} -o dengdeng-server-test.tar
+          chmod 644 dengdeng-server-test.tar
+          ls -lh dengdeng-server-test.tar
 
       - name: Deploy to Test Server via SSH
         uses: appleboy/scp-action@v0.1.7
@@ -157,6 +159,8 @@ jobs:
           docker tag dengdeng-server:prod-${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/dengdeng-server:latest
           docker tag dengdeng-server:prod-${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/dengdeng-server:$(date +%Y%m%d)
           docker save dengdeng-server:prod-${{ github.sha }} -o dengdeng-server-prod.tar
+          chmod 644 dengdeng-server-prod.tar
+          ls -lh dengdeng-server-prod.tar
 
       - name: Deploy to Production Server via SSH
         uses: appleboy/scp-action@v0.1.7
