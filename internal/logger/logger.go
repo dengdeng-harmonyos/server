@@ -20,6 +20,8 @@ var (
 	DebugLogger *log.Logger
 	// AccessLogger 访问日志
 	AccessLogger *log.Logger
+    // debugEnabled 是否启用调试日志
+    debugEnabled bool
 )
 
 // Init 初始化日志系统
@@ -27,6 +29,14 @@ func Init() {
 	// 创建多个writer：标准输出
 	infoWriter := io.MultiWriter(os.Stdout)
 	errorWriter := io.MultiWriter(os.Stderr)
+
+	// 根据 GIN_MODE 决定是否启用调试日志
+	// release 模式下关闭 DEBUG 日志
+	ginMode := os.Getenv("GIN_MODE")
+	debugEnabled = ginMode != "release"
+	if !debugEnabled {
+		Info("Debug logging disabled (GIN_MODE=%s)", ginMode)
+	}
 
 	// 初始化不同级别的logger
 	InfoLogger = log.New(infoWriter, "[INFO] ", log.LstdFlags|log.Lshortfile)
@@ -69,10 +79,14 @@ func ErrorWithStack(err error, format string, v ...interface{}) {
 
 // Debug 记录调试日志
 func Debug(format string, v ...interface{}) {
-	if DebugLogger == nil {
-		Init()
-	}
-	DebugLogger.Output(2, fmt.Sprintf(format, v...))
+    // 生产环境不输出 DEBUG 日志
+    if !debugEnabled {
+        return
+    }
+    if DebugLogger == nil {
+        Init()
+    }
+    DebugLogger.Output(2, fmt.Sprintf(format, v...))
 }
 
 // Access 记录访问日志
@@ -90,7 +104,7 @@ func GinLogger() gin.HandlerFunc {
 
 		// 请求日志
 		Access("→ %s %s from %s", c.Request.Method, c.Request.URL.Path, c.ClientIP())
-		if len(c.Request.URL.RawQuery) > 0 {
+		if debugEnabled && len(c.Request.URL.RawQuery) > 0 {
 			Debug("  Query: %s", c.Request.URL.RawQuery)
 		}
 
