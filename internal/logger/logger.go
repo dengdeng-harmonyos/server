@@ -30,6 +30,12 @@ func Init() {
 	infoWriter := io.MultiWriter(os.Stdout)
 	errorWriter := io.MultiWriter(os.Stderr)
 
+	// 先初始化不同级别的logger
+	InfoLogger = log.New(infoWriter, "[INFO] ", log.LstdFlags|log.Lshortfile)
+	ErrorLogger = log.New(errorWriter, "[ERROR] ", log.LstdFlags|log.Lshortfile)
+	DebugLogger = log.New(infoWriter, "[DEBUG] ", log.LstdFlags|log.Lshortfile)
+	AccessLogger = log.New(infoWriter, "[ACCESS] ", log.LstdFlags)
+
 	// 根据 GIN_MODE 决定是否启用调试日志
 	// release 模式下关闭 DEBUG 日志
 	ginMode := os.Getenv("GIN_MODE")
@@ -37,12 +43,6 @@ func Init() {
 	if !debugEnabled {
 		Info("Debug logging disabled (GIN_MODE=%s)", ginMode)
 	}
-
-	// 初始化不同级别的logger
-	InfoLogger = log.New(infoWriter, "[INFO] ", log.LstdFlags|log.Lshortfile)
-	ErrorLogger = log.New(errorWriter, "[ERROR] ", log.LstdFlags|log.Lshortfile)
-	DebugLogger = log.New(infoWriter, "[DEBUG] ", log.LstdFlags|log.Lshortfile)
-	AccessLogger = log.New(infoWriter, "[ACCESS] ", log.LstdFlags)
 }
 
 // Info 记录信息日志
