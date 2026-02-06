@@ -1,32 +1,17 @@
-# 构建阶段
-FROM golang:1.21-alpine AS builder
+# Dockerfile for CI/CD pipeline
+# 使用 GitHub Actions 预构建的二进制文件（已注入配置）
 
-WORKDIR /app
-
-# 安装依赖
-RUN apk add --no-cache git
-
-# 复制 go mod 文件
-COPY go.mod go.sum ./
-RUN go mod download
-
-# 复制源代码
-COPY . .
-
-# 构建应用
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
-
-# 运行阶段 - 包含PostgreSQL和应用服务
 FROM postgres:15-alpine
 
 # 安装必要的工具
-RUN apk --no-cache add ca-certificates tzdata bash supervisor
+RUN apk --no-cache add ca-certificates tzdata bash supervisor wget
 
 # 创建应用目录
 WORKDIR /app
 
-# 从构建阶段复制二进制文件
-COPY --from=builder /app/main .
+# 复制预构建的二进制文件（由 GitHub Actions 构建，已注入配置）
+COPY bin/dengdeng-server ./main
+RUN chmod +x /app/main
 
 # 复制数据库文件和迁移脚本
 COPY database /app/database
@@ -93,11 +78,13 @@ echo "[READY] PostgreSQL is ready"
 # 执行数据库迁移
 echo "[MIGRATE] Running database migrations..."
 if [ -f /app/database/migrate.sh ]; then
-  /app/database/migrate.sh
-  if [ $? -eq 0 ]; then
+  # 在子shell中执行迁移脚本,避免exit影响主脚本
+  (bash /app/database/migrate.sh)
+  MIGRATE_EXIT_CODE=$?
+  if [ $MIGRATE_EXIT_CODE -eq 0 ]; then
     echo "[MIGRATE] Database migration completed successfully"
   else
-    echo "[ERROR] Database migration failed"
+    echo "[ERROR] Database migration failed with exit code: $MIGRATE_EXIT_CODE"
     exit 1
   fi
 else
@@ -122,11 +109,11 @@ ENV POSTGRES_DB=push_server \
   DB_USER=postgres \
   DB_PASSWORD=postgres123 \
   DB_NAME=push_server \
+  GIN_MODE=release \
   DB_SSLMODE=disable
 
 # 默认应用配置（可在docker-compose.yml中覆盖）
 ENV PORT=8080 \
-  GIN_MODE=release \
   SERVER_NAME=噔噔推送服务 \
   TZ=Asia/Shanghai
 

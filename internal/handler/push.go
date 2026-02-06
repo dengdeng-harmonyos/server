@@ -113,35 +113,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 
 	logger.Info("Successfully sent notification to device: %s, title: %s", req.DeviceId, req.Title)
 
-	// 更新统计
-	h.updateStatistics("notification", true)
-
 	RespondSuccess(c, http.StatusOK, gin.H{
 		"message": "Notification sent successfully",
 	})
-}
-
-// updateStatistics 更新推送统计（内部方法）
-func (h *PushHandler) updateStatistics(pushType string, success bool) {
-	date := time.Now().Format("2006-01-02")
-
-	if success {
-		h.db.DB.Exec(`
-			INSERT INTO push_statistics (date, push_type, total_count, success_count, failed_count, created_at)
-			VALUES ($1, $2, 1, 1, 0, NOW())
-			ON CONFLICT (date, push_type) 
-			DO UPDATE SET 
-				total_count = push_statistics.total_count + 1,
-				success_count = push_statistics.success_count + 1
-		`, date, pushType)
-	} else {
-		h.db.DB.Exec(`
-			INSERT INTO push_statistics (date, push_type, total_count, success_count, failed_count, created_at)
-			VALUES ($1, $2, 1, 0, 1, NOW())
-			ON CONFLICT (date, push_type) 
-			DO UPDATE SET 
-				total_count = push_statistics.total_count + 1,
-				failed_count = push_statistics.failed_count + 1
-		`, date, pushType)
-	}
 }
