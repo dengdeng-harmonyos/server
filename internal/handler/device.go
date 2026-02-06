@@ -216,20 +216,3 @@ func (h *DeviceHandler) GetPublicKey(deviceId string) (string, error) {
 
 	return publicKey, err
 }
-
-// GetPushTokens 批量获取push_token
-func (h *DeviceHandler) GetPushTokens(deviceIds []string) ([]string, error) {
-	if len(deviceIds) == 0 {
-		return []string{}, nil
-	}
-
-	tokens := make([]string, 0, len(deviceIds))
-	for _, key := range deviceIds {
-		token, err := h.GetPushToken(key)
-		if err == nil {
-			tokens = append(tokens, token)
-		}
-	}
-
-	return tokens, nil
-}
