@@ -182,6 +182,7 @@ jobs:
           script: |
             # 加载 Docker 镜像
             docker load -i /tmp/dengdeng-server-prod.tar
+            docker tag dengdeng-server:prod-${{ github.sha }} dengdeng-server:latest
 
             # 停止并删除旧容器
             docker stop dengdeng-prod || true
