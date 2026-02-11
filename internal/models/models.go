@@ -3,6 +3,8 @@ package models
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // ISO8601Time 自定义时间类型，自动序列化为ISO 8601格式
@@ -29,8 +31,7 @@ func (t *ISO8601Time) UnmarshalJSON(data []byte) error {
 
 // Device 设备信息（简化版）
 type Device struct {
-	ID           int         `json:"id"`
-	DeviceId     string      `json:"device_id"`   // 服务端生成的随机ID（对外使用）
+	DeviceId     uuid.UUID   `json:"device_id"`   // UUID主键，服务端生成的随机ID（对外使用）
 	PushToken    string      `json:"-"`           // 华为Push Token（加密存储，不对外暴露）
 	PublicKey    string      `json:"-"`           // RSA公钥(PEM格式，不对外暴露)
 	DeviceType   string      `json:"device_type"` // phone/tablet/watch

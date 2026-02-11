@@ -10,6 +10,7 @@ import (
 	"github.com/dengdeng-harmonyos/server/internal/models"
 	"github.com/dengdeng-harmonyos/server/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type PushHandler struct {
@@ -43,6 +44,12 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	var req models.PushNotificationRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid request: "+err.Error())
+		return
+	}
+
+	// 验证 device_id 格式是否为有效的 UUID
+	if _, err := uuid.Parse(req.DeviceId); err != nil {
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid device_id format")
 		return
 	}
 

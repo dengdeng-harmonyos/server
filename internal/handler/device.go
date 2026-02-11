@@ -50,8 +50,8 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 	// 查询是否已存在该push_token
 	var existingDevice models.Device
 	err = h.db.DB.QueryRow(`
-		SELECT id, device_id FROM devices WHERE push_token = $1
-	`, encryptedToken).Scan(&existingDevice.ID, &existingDevice.DeviceId)
+		SELECT device_id FROM devices WHERE push_token = $1
+	`, encryptedToken).Scan(&existingDevice.DeviceId)
 
 	if err == nil {
 		// 设备已存在，更新信息（包括公钥）
@@ -59,8 +59,8 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 			UPDATE devices 
 			SET device_type = $1, os_version = $2, app_version = $3, public_key = $4,
 			    is_active = true, last_active_at = NOW(), updated_at = NOW()
-			WHERE id = $5
-		`, req.DeviceType, req.OSVersion, req.AppVersion, req.PublicKey, existingDevice.ID)
+			WHERE device_id = $5
+		`, req.DeviceType, req.OSVersion, req.AppVersion, req.PublicKey, existingDevice.DeviceId)
 
 		if err != nil {
 			RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to update device")
@@ -68,15 +68,15 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 		}
 
 		RespondSuccess(c, http.StatusOK, gin.H{
-			"device_id":   existingDevice.DeviceId,
+			"device_id":   existingDevice.DeviceId.String(),
 			"server_name": h.serverName,
 			"message":     "Device updated successfully",
 		})
 		return
 	}
 
-	// 生成新的device_id
-	deviceId := uuid.New().String()
+	// 生成新的device_id (UUID)
+	deviceId := uuid.New()
 
 	// 插入新设备（包括公钥）
 	_, err = h.db.DB.Exec(`
@@ -90,7 +90,7 @@ func (h *DeviceHandler) Register(c *gin.Context) {
 	}
 
 	RespondSuccess(c, http.StatusOK, gin.H{
-		"device_id":   deviceId,
+		"device_id":   deviceId.String(),
 		"server_name": h.serverName,
 		"message":     "Device registered successfully",
 	})
