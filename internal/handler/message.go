@@ -9,6 +9,7 @@ import (
 	"github.com/dengdeng-harmonyos/server/internal/models"
 	"github.com/dengdeng-harmonyos/server/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
@@ -44,6 +45,12 @@ func (h *MessageHandler) GetPendingMessages(c *gin.Context) {
 
 	if deviceId == "" {
 		RespondError(c, http.StatusUnauthorized, models.Unauthorized, "Missing device key")
+		return
+	}
+
+	// 验证 device_id 格式是否为有效的 UUID
+	if _, err := uuid.Parse(deviceId); err != nil {
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid device_id format")
 		return
 	}
 
@@ -112,6 +119,12 @@ func (h *MessageHandler) ConfirmMessages(c *gin.Context) {
 
 	if req.DeviceId == "" {
 		RespondError(c, http.StatusUnauthorized, models.Unauthorized, "Missing device key")
+		return
+	}
+
+	// 验证 device_id 格式是否为有效的 UUID
+	if _, err := uuid.Parse(req.DeviceId); err != nil {
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid device_id format")
 		return
 	}
 
