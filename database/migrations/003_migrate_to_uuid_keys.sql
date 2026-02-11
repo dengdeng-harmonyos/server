@@ -5,6 +5,11 @@
 
 BEGIN;
 
+-- Drop foreign key constraint temporarily
+ALTER TABLE pending_messages DROP CONSTRAINT fk_device_id;
+ALTER TABLE pending_messages DROP CONSTRAINT pending_messages_pkey;
+ALTER TABLE push_statistics DROP CONSTRAINT push_statistics_pkey;
+
 -- ========================================
 -- Step 1: Migrate devices table
 -- ========================================
@@ -32,9 +37,6 @@ COMMENT ON COLUMN devices.device_id IS 'UUID primary key, server-generated or cl
 -- Step 2: Migrate pending_messages table
 -- ========================================
 
--- Drop foreign key constraint temporarily
-ALTER TABLE pending_messages DROP CONSTRAINT fk_device_id;
-
 -- Add new UUID id column
 ALTER TABLE pending_messages ADD COLUMN uuid_id UUID DEFAULT gen_random_uuid();
 
@@ -46,7 +48,6 @@ ALTER TABLE pending_messages
     ALTER COLUMN device_id TYPE UUID USING device_id::uuid;
 
 -- Drop old SERIAL primary key
-ALTER TABLE pending_messages DROP CONSTRAINT pending_messages_pkey;
 ALTER TABLE pending_messages DROP COLUMN id;
 
 -- Rename uuid_id to id and set as primary key
@@ -78,7 +79,6 @@ ALTER TABLE push_statistics ADD COLUMN uuid_id UUID DEFAULT gen_random_uuid();
 UPDATE push_statistics SET uuid_id = gen_random_uuid() WHERE uuid_id IS NULL;
 
 -- Drop old SERIAL primary key
-ALTER TABLE push_statistics DROP CONSTRAINT push_statistics_pkey;
 ALTER TABLE push_statistics DROP COLUMN id;
 
 -- Rename uuid_id to id and set as primary key
