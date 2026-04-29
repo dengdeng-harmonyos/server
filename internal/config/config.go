@@ -11,12 +11,18 @@ type Config struct {
 	Database   DatabaseConfig
 	HuaweiPush HuaweiPushConfig
 	Security   SecurityConfig
+	AppUpdate  AppUpdateConfig
 }
 
 type ServerConfig struct {
-	Port       string
-	Mode       string
-	ServerName string // 服务器名称，用于标识消息来源
+	Port         string
+	Mode         string
+	ServerName   string // 服务器名称，用于标识消息来源
+	Version      string
+	Build        string
+	APIVersion   int64
+	Capabilities []string
+	UpgradeURL   string
 }
 
 type DatabaseConfig struct {
@@ -39,6 +45,15 @@ type SecurityConfig struct {
 	EncryptionKey         string // Push Token加密密钥（32字节）
 	DeviceIdTTL           int    // Device Id有效期（秒）
 	MaxDailyPushPerDevice int    // 每设备每日最大推送数
+}
+
+type AppUpdateConfig struct {
+	LatestVersionCode int64
+	LatestVersionName string
+	MinVersionCode    int64
+	ForceUpdate       bool
+	StoreURL          string
+	ReleaseNotes      string
 }
 
 // AgConnectServices 用于解析agconnect-services.json
@@ -81,9 +96,14 @@ func Load() *Config {
 
 	return &Config{
 		Server: ServerConfig{
-			Port:       getEnv("PORT", "8080"),
-			Mode:       getEnv("GIN_MODE", "debug"),
-			ServerName: getEnv("SERVER_NAME", "噔噔推送服务"),
+			Port:         getEnv("PORT", "8080"),
+			Mode:         getEnv("GIN_MODE", "debug"),
+			ServerName:   getEnv("SERVER_NAME", "噔噔推送服务"),
+			Version:      getEnv("SERVER_VERSION", "1.1.0"),
+			Build:        getEnv("SERVER_BUILD", "dev"),
+			APIVersion:   getEnvInt64("SERVER_API_VERSION", 2),
+			Capabilities: getEnvStringList("SERVER_CAPABILITIES", []string{"message_crypto_v1", "push_url_data", "app_update_policy"}),
+			UpgradeURL:   getEnv("SERVER_UPGRADE_URL", "https://github.com/dengdeng-harmonyos/server"),
 		},
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -104,6 +124,14 @@ func Load() *Config {
 			DeviceIdTTL:           2592000, // 30天
 			MaxDailyPushPerDevice: 100,
 		},
+		AppUpdate: AppUpdateConfig{
+			LatestVersionCode: getEnvInt64("APP_LATEST_VERSION_CODE", 0),
+			LatestVersionName: getEnv("APP_LATEST_VERSION_NAME", ""),
+			MinVersionCode:    getEnvInt64("APP_MIN_VERSION_CODE", 0),
+			ForceUpdate:       getEnvBool("APP_FORCE_UPDATE", true),
+			StoreURL:          getEnv("APP_STORE_URL", "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng"),
+			ReleaseNotes:      getEnv("APP_RELEASE_NOTES", ""),
+		},
 	}
 }
 
@@ -112,6 +140,65 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func getEnvInt64(key string, defaultValue int64) int64 {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	var parsed int64
+	if _, err := fmt.Sscanf(value, "%d", &parsed); err != nil {
+		return defaultValue
+	}
+	return parsed
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	switch value {
+	case "1", "true", "TRUE", "True", "yes", "YES", "Yes", "on", "ON", "On":
+		return true
+	case "0", "false", "FALSE", "False", "no", "NO", "No", "off", "OFF", "Off":
+		return false
+	default:
+		return defaultValue
+	}
+}
+
+func getEnvStringList(key string, defaultValue []string) []string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	var result []string
+	var current string
+	for _, char := range value {
+		if char == ',' {
+			if current != "" {
+				result = append(result, current)
+			}
+			current = ""
+			continue
+		}
+		if char != ' ' && char != '\t' && char != '\n' && char != '\r' {
+			current += string(char)
+		}
+	}
+
+	if current != "" {
+		result = append(result, current)
+	}
+	if len(result) == 0 {
+		return defaultValue
+	}
+	return result
 }
 
 // getEncryptionKey 获取加密密钥（优先使用环境变量）
