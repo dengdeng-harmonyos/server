@@ -75,6 +75,9 @@ func main() {
 	messageHandler := handler.NewMessageHandler(db.DB)
 	logger.Info("✓ Message handler initialized")
 
+	appUpdateHandler := handler.NewAppUpdateHandler(cfg.AppUpdate)
+	logger.Info("✓ App update handler initialized")
+
 	// API v1 路由
 	v1 := router.Group("/api/v1")
 	{
@@ -91,11 +94,16 @@ func main() {
 		{
 			push.GET("/notification", pushHandler.SendNotification) // 发送通知消息
 		}
-		
+
 		messages := v1.Group("/messages")
 		{
 			messages.GET("/pending", messageHandler.GetPendingMessages) // 获取待接收消息
 			messages.POST("/confirm", messageHandler.ConfirmMessages)   // 确认消息已收到
+		}
+
+		app := v1.Group("/app")
+		{
+			app.GET("/update", appUpdateHandler.Check) // 检查App强制更新策略
 		}
 	}
 

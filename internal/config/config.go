@@ -11,6 +11,7 @@ type Config struct {
 	Database   DatabaseConfig
 	HuaweiPush HuaweiPushConfig
 	Security   SecurityConfig
+	AppUpdate  AppUpdateConfig
 }
 
 type ServerConfig struct {
@@ -39,6 +40,15 @@ type SecurityConfig struct {
 	EncryptionKey         string // Push Token加密密钥（32字节）
 	DeviceIdTTL           int    // Device Id有效期（秒）
 	MaxDailyPushPerDevice int    // 每设备每日最大推送数
+}
+
+type AppUpdateConfig struct {
+	LatestVersionCode int64
+	LatestVersionName string
+	MinVersionCode    int64
+	ForceUpdate       bool
+	StoreURL          string
+	ReleaseNotes      string
 }
 
 // AgConnectServices 用于解析agconnect-services.json
@@ -104,6 +114,14 @@ func Load() *Config {
 			DeviceIdTTL:           2592000, // 30天
 			MaxDailyPushPerDevice: 100,
 		},
+		AppUpdate: AppUpdateConfig{
+			LatestVersionCode: getEnvInt64("APP_LATEST_VERSION_CODE", 0),
+			LatestVersionName: getEnv("APP_LATEST_VERSION_NAME", ""),
+			MinVersionCode:    getEnvInt64("APP_MIN_VERSION_CODE", 0),
+			ForceUpdate:       getEnvBool("APP_FORCE_UPDATE", true),
+			StoreURL:          getEnv("APP_STORE_URL", "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng"),
+			ReleaseNotes:      getEnv("APP_RELEASE_NOTES", ""),
+		},
 	}
 }
 
@@ -112,6 +130,35 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func getEnvInt64(key string, defaultValue int64) int64 {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	var parsed int64
+	if _, err := fmt.Sscanf(value, "%d", &parsed); err != nil {
+		return defaultValue
+	}
+	return parsed
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	switch value {
+	case "1", "true", "TRUE", "True", "yes", "YES", "Yes", "on", "ON", "On":
+		return true
+	case "0", "false", "FALSE", "False", "no", "NO", "No", "off", "OFF", "Off":
+		return false
+	default:
+		return defaultValue
+	}
 }
 
 // getEncryptionKey 获取加密密钥（优先使用环境变量）
