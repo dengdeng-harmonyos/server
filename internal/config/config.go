@@ -15,9 +15,14 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port       string
-	Mode       string
-	ServerName string // 服务器名称，用于标识消息来源
+	Port         string
+	Mode         string
+	ServerName   string // 服务器名称，用于标识消息来源
+	Version      string
+	Build        string
+	APIVersion   int64
+	Capabilities []string
+	UpgradeURL   string
 }
 
 type DatabaseConfig struct {
@@ -91,9 +96,14 @@ func Load() *Config {
 
 	return &Config{
 		Server: ServerConfig{
-			Port:       getEnv("PORT", "8080"),
-			Mode:       getEnv("GIN_MODE", "debug"),
-			ServerName: getEnv("SERVER_NAME", "噔噔推送服务"),
+			Port:         getEnv("PORT", "8080"),
+			Mode:         getEnv("GIN_MODE", "debug"),
+			ServerName:   getEnv("SERVER_NAME", "噔噔推送服务"),
+			Version:      getEnv("SERVER_VERSION", "1.1.0"),
+			Build:        getEnv("SERVER_BUILD", "dev"),
+			APIVersion:   getEnvInt64("SERVER_API_VERSION", 2),
+			Capabilities: getEnvStringList("SERVER_CAPABILITIES", []string{"message_crypto_v1", "push_url_data", "app_update_policy"}),
+			UpgradeURL:   getEnv("SERVER_UPGRADE_URL", "https://github.com/dengdeng-harmonyos/server"),
 		},
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -159,6 +169,36 @@ func getEnvBool(key string, defaultValue bool) bool {
 	default:
 		return defaultValue
 	}
+}
+
+func getEnvStringList(key string, defaultValue []string) []string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	var result []string
+	var current string
+	for _, char := range value {
+		if char == ',' {
+			if current != "" {
+				result = append(result, current)
+			}
+			current = ""
+			continue
+		}
+		if char != ' ' && char != '\t' && char != '\n' && char != '\r' {
+			current += string(char)
+		}
+	}
+
+	if current != "" {
+		result = append(result, current)
+	}
+	if len(result) == 0 {
+		return defaultValue
+	}
+	return result
 }
 
 // getEncryptionKey 获取加密密钥（优先使用环境变量）
