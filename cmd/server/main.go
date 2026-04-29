@@ -75,6 +75,9 @@ func main() {
 	messageHandler := handler.NewMessageHandler(db.DB)
 	logger.Info("✓ Message handler initialized")
 
+	appUpdateHandler := handler.NewAppUpdateHandler(cfg.AppUpdate)
+	logger.Info("✓ App update handler initialized")
+
 	// API v1 路由
 	v1 := router.Group("/api/v1")
 	{
@@ -91,20 +94,29 @@ func main() {
 		{
 			push.GET("/notification", pushHandler.SendNotification) // 发送通知消息
 		}
-		
+
 		messages := v1.Group("/messages")
 		{
 			messages.GET("/pending", messageHandler.GetPendingMessages) // 获取待接收消息
 			messages.POST("/confirm", messageHandler.ConfirmMessages)   // 确认消息已收到
+		}
+
+		app := v1.Group("/app")
+		{
+			app.GET("/update", appUpdateHandler.Check) // 检查App强制更新策略
 		}
 	}
 
 	// 健康检查（支持GET和HEAD）
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"status":  "ok",
-			"version": "1.0.0",
-			"service": "Dengdeng Push Server (Huawei Push Kit v3)",
+			"status":       "ok",
+			"version":      cfg.Server.Version,
+			"build":        cfg.Server.Build,
+			"apiVersion":   cfg.Server.APIVersion,
+			"capabilities": cfg.Server.Capabilities,
+			"upgradeUrl":   cfg.Server.UpgradeURL,
+			"service":      "Dengdeng Push Server (Huawei Push Kit v3)",
 		})
 	})
 	router.HEAD("/health", func(c *gin.Context) {

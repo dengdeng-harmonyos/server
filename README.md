@@ -131,7 +131,13 @@ curl "http://your-server:8080/api/v1/push/batch?device_ids=key1,key2,key3&title=
 |---------|------|:----:|--------|
 | `PUSH_TOKEN_ENCRYPTION_KEY` | Push Token 加密密钥（32字节，Base64） | ✅ | - |
 | `SERVER_NAME` | 服务器标识名称 | ❌ | `噔噔推送服务` |
+| `SERVER_VERSION` | 服务端版本号，用于 App 兼容性检查 | ❌ | `1.1.0` |
+| `SERVER_API_VERSION` | 服务端 API 兼容版本 | ❌ | `2` |
+| `SERVER_CAPABILITIES` | 服务端能力列表，逗号分隔 | ❌ | `message_crypto_v1,push_url_data,app_update_policy` |
+| `SERVER_UPGRADE_URL` | App 提示用户升级服务端时展示的地址 | ❌ | `https://github.com/dengdeng-harmonyos/server` |
 | `PORT` | HTTP 服务端口 | ❌ | `8080` |
+
+`GET /health` 会返回 `version`、`apiVersion`、`capabilities` 和 `upgradeUrl`。App 会用这些字段判断自部署服务端是否支持当前 App 功能；如果版本过低，用户需要更新服务端镜像或源码后再继续使用该服务端。
 
 ### 数据持久化
 
