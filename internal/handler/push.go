@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 
 	"github.com/dengdeng-harmonyos/server/internal/config"
 	"github.com/dengdeng-harmonyos/server/internal/database"
@@ -39,7 +40,7 @@ func NewPushHandler(db *database.Database, deviceHandler *DeviceHandler, cfg con
 }
 
 // SendNotification 发送通知消息（GET方式）
-// GET /api/v1/push/notification?device_id=xxx&title=xxx&content=xxx&data=[{"key":"xxx","value":"xxx"}]
+// GET /api/v1/push/notification?device_id=xxx&title=xxx&content=xxx&data=[{"key":"__url","value":"https://example.com"}]
 func (h *PushHandler) SendNotification(c *gin.Context) {
 	var req models.PushNotificationRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -73,6 +74,15 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 		}
 	}
 
+	messageURL := extractMessageURL(dataArray)
+	if messageURL != "" {
+		parsedURL, err := url.ParseRequestURI(messageURL)
+		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+			RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid __url format, expected http or https URL")
+			return
+		}
+	}
+
 	// 获取设备公钥
 	publicKey, err := h.deviceHandler.GetPublicKey(req.DeviceId)
 	if err != nil || publicKey == "" {
@@ -97,8 +107,12 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 
 	// 2. 发送华为推送通知（明文内容，用于显示通知）
 	notificationData := map[string]interface{}{
-		"type":        "new_message",
-		"server_name": h.serverName,
+		"type":          "new_message",
+		"server_name":   h.serverName,
+		"__server_name": h.serverName,
+	}
+	if messageURL != "" {
+		notificationData["__url"] = messageURL
 	}
 	err = h.pushService.SendNotification(pushToken, req.Title, req.Content, notificationData)
 	if err != nil {
@@ -120,4 +134,18 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	RespondSuccess(c, http.StatusOK, gin.H{
 		"message": "Notification sent successfully",
 	})
+}
+
+func extractMessageURL(dataArray []map[string]interface{}) string {
+	for _, item := range dataArray {
+		keyValue, ok := item["key"].(string)
+		if !ok || keyValue != "__url" {
+			continue
+		}
+
+		if urlValue, ok := item["value"].(string); ok {
+			return urlValue
+		}
+	}
+	return ""
 }
