@@ -44,8 +44,8 @@ func (db *Database) InitTables() error {
 			app_version VARCHAR(50),
 			is_active BOOLEAN DEFAULT TRUE,
 			last_active_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 		)`,
 
 		// 推送统计表（仅统计数据，不记录具体内容）
@@ -91,6 +91,27 @@ func (db *Database) InitTables() error {
 		`DROP TRIGGER IF EXISTS update_app_update_policies_updated_at ON app_update_policies`,
 		`CREATE TRIGGER update_app_update_policies_updated_at
 			BEFORE UPDATE ON app_update_policies
+			FOR EACH ROW
+			EXECUTE FUNCTION update_updated_at_column()`,
+
+		// App更新版本历史表
+		`CREATE TABLE IF NOT EXISTS app_update_releases (
+			platform VARCHAR(32) NOT NULL DEFAULT 'harmonyos',
+			version_code BIGINT NOT NULL,
+			version_name VARCHAR(64) NOT NULL DEFAULT '',
+			min_version_code BIGINT NOT NULL DEFAULT 0,
+			force_update BOOLEAN NOT NULL DEFAULT TRUE,
+			store_url TEXT NOT NULL DEFAULT 'store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng',
+			release_notes TEXT NOT NULL DEFAULT '',
+			enabled BOOLEAN NOT NULL DEFAULT TRUE,
+			source VARCHAR(64) NOT NULL DEFAULT 'manifest',
+			created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (platform, version_code)
+		)`,
+		`DROP TRIGGER IF EXISTS update_app_update_releases_updated_at ON app_update_releases`,
+		`CREATE TRIGGER update_app_update_releases_updated_at
+			BEFORE UPDATE ON app_update_releases
 			FOR EACH ROW
 			EXECUTE FUNCTION update_updated_at_column()`,
 	}

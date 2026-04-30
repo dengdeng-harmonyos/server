@@ -17,6 +17,9 @@ RUN chmod +x /app/main
 COPY database /app/database
 RUN chmod +x /app/database/migrate.sh
 
+# 复制发布配置清单
+COPY config /app/config
+
 # 创建supervisor配置目录
 RUN mkdir -p /etc/supervisor.d
 

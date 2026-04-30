@@ -54,6 +54,7 @@ type AppUpdateConfig struct {
 	ForceUpdate       bool
 	StoreURL          string
 	ReleaseNotes      string
+	PolicyFile        string
 }
 
 // AgConnectServices 用于解析agconnect-services.json
@@ -131,6 +132,7 @@ func Load() *Config {
 			ForceUpdate:       getEnvBool("APP_FORCE_UPDATE", true),
 			StoreURL:          getEnv("APP_STORE_URL", "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng"),
 			ReleaseNotes:      getEnv("APP_RELEASE_NOTES", ""),
+			PolicyFile:        getEnv("APP_UPDATE_POLICY_FILE", "config/app_update_policy.json"),
 		},
 	}
 }
