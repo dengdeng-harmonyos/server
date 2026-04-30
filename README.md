@@ -141,7 +141,26 @@ curl "http://your-server:8080/api/v1/push/batch?device_ids=key1,key2,key3&title=
 
 ### App 更新策略
 
-App 强制更新策略存储在数据库表 `app_update_policies` 中，服务启动时不需要通过环境变量维护版本号。默认会创建 `harmonyos` 平台记录，表示不强制更新。
+App 强制更新策略存储在数据库表 `app_update_policies` 中。发布 App 新版本时，更新仓库内的 `config/app_update_policy.json`，新服务端镜像启动后会自动将该版本写入 `app_update_releases` 历史表；当清单中 `enabled=true` 时，还会把该版本同步为 `app_update_policies` 当前生效策略。
+
+同一个镜像重复启动不会产生重复版本记录：`app_update_releases` 使用 `(platform, version_code)` 作为主键，`app_update_policies` 使用 `platform` 作为主键。旧镜像重启也不会把当前策略降级到更低版本。
+
+发布清单示例：
+
+```json
+{
+  "platform": "harmonyos",
+  "versionCode": 2,
+  "versionName": "1.1.0",
+  "minVersionCode": 2,
+  "forceUpdate": true,
+  "storeUrl": "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng",
+  "releaseNotes": "请升级到最新版本",
+  "enabled": true
+}
+```
+
+也可以直接修改当前策略表：
 
 ```sql
 UPDATE app_update_policies
