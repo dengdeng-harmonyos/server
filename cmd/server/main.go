@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/dengdeng-harmonyos/server/internal/config"
 	"github.com/dengdeng-harmonyos/server/internal/database"
@@ -51,6 +52,10 @@ func main() {
 	}
 	logger.Info("✓ App update policy manifest synced")
 
+	cleanupCancel := appservice.StartExpiredMessageCleanup(context.Background(), db.DB, 6*time.Hour)
+	defer cleanupCancel()
+	logger.Info("✓ Expired pending message cleanup scheduled")
+
 	// 设置 Gin 模式
 	if cfg.Server.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
@@ -87,6 +92,9 @@ func main() {
 	appUpdateHandler := handler.NewAppUpdateHandler(db.DB, cfg.AppUpdate)
 	logger.Info("✓ App update handler initialized")
 
+	diagnosticsHandler := handler.NewDiagnosticsHandler(db.DB)
+	logger.Info("✓ Diagnostics handler initialized")
+
 	// API v1 路由
 	v1 := router.Group("/api/v1")
 	{
@@ -113,6 +121,11 @@ func main() {
 		app := v1.Group("/app")
 		{
 			app.GET("/update", appUpdateHandler.Check) // 检查App强制更新策略
+		}
+
+		diagnostics := v1.Group("/diagnostics")
+		{
+			diagnostics.GET("/device", diagnosticsHandler.Device) // 非敏感设备诊断
 		}
 	}
 

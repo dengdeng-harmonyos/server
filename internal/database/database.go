@@ -39,6 +39,7 @@ func (db *Database) InitTables() error {
 			id SERIAL PRIMARY KEY,
 			device_id VARCHAR(64) UNIQUE NOT NULL,
 			push_token TEXT NOT NULL UNIQUE,
+			public_key TEXT,
 			device_type VARCHAR(50),
 			os_version VARCHAR(50),
 			app_version VARCHAR(50),
@@ -47,6 +48,7 @@ func (db *Database) InitTables() error {
 			created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 		)`,
+		`ALTER TABLE devices ADD COLUMN IF NOT EXISTS public_key TEXT`,
 
 		// 推送统计表（仅统计数据，不记录具体内容）
 		`CREATE TABLE IF NOT EXISTS push_statistics (
@@ -60,10 +62,36 @@ func (db *Database) InitTables() error {
 			CONSTRAINT unique_date_type UNIQUE(date, push_type)
 		)`,
 
+		// 待同步加密消息表
+		`CREATE TABLE IF NOT EXISTS pending_messages (
+			id SERIAL PRIMARY KEY,
+			device_id VARCHAR(64) NOT NULL,
+			server_name VARCHAR(255) NOT NULL,
+			encrypted_aes_key TEXT NOT NULL,
+			encrypted_content TEXT NOT NULL,
+			iv TEXT NOT NULL,
+			notification_sent BOOLEAN DEFAULT FALSE,
+			delivered BOOLEAN DEFAULT FALSE,
+			created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+			expires_at TIMESTAMPTZ NOT NULL,
+			confirmed_at TIMESTAMPTZ,
+			CONSTRAINT fk_device_id FOREIGN KEY (device_id) REFERENCES devices(device_id) ON DELETE CASCADE
+		)`,
+
 		// 创建索引
 		`CREATE INDEX IF NOT EXISTS idx_devices_device_id ON devices(device_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_devices_is_active ON devices(is_active)`,
 		`CREATE INDEX IF NOT EXISTS idx_push_stats_date ON push_statistics(date)`,
+		`CREATE INDEX IF NOT EXISTS idx_pending_device_id ON pending_messages(device_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_pending_delivered ON pending_messages(delivered)`,
+		`CREATE INDEX IF NOT EXISTS idx_pending_expires ON pending_messages(expires_at)`,
+		`CREATE OR REPLACE FUNCTION clean_expired_messages() RETURNS void AS $$
+			BEGIN
+				DELETE FROM pending_messages
+				WHERE expires_at < NOW()
+				   OR (delivered = true AND confirmed_at < NOW() - INTERVAL '24 hours');
+			END;
+			$$ LANGUAGE plpgsql`,
 
 		// App更新策略表
 		`CREATE TABLE IF NOT EXISTS app_update_policies (

@@ -10,7 +10,7 @@
 
 噔噔推送服务是一个专为 **HarmonyOS Next** 设计的**安全、隐私友好**的推送服务解决方案。本项目完全开源，致力于为开发者提供一个可信赖、易部署的推送服务基础设施。
 
-> 🎯 **v1.0 正式发布**：生产就绪，支持完整的推送功能和自动化部署
+> 🎯 **v1.1 正式发布**：强化推送可用性、设备诊断和消息同步可靠性
 
 ### ✨ 主要亮点
 
@@ -35,12 +35,14 @@
 - **🔧 配置嵌入**：华为推送配置编译时嵌入，无需外部文件
 - **🤖 自动化 CI/CD**：GitHub Actions 自动构建、测试和部署
 - **🏥 健康检查**：内置健康检查接口，支持监控
+- **🧭 设备诊断**：提供非敏感设备状态检查，便于排查注册与同步问题
 - **🐳 Docker 支持**：官方镜像托管在 Docker Hub
 - **🔄 自动重启**：容器崩溃自动恢复
 
 ### 📡 功能特性
 
 - **📬 通知推送**：支持通知栏消息（带标题、内容、自定义数据）
+- **🔄 加密消息同步**：消息加密暂存 30 天，App 同步确认后删除
 - **🏥 健康监控**：内置健康检查和服务状态接口
 
 ## 🚀 快速开始
@@ -100,8 +102,9 @@ docker logs -f push-server
 | 功能 | 接口路径 | 说明 |
 |------|---------|------|
 | 健康检查 | `GET /health` | 检查服务状态 |
-| 设备注册 | `GET /api/v1/device/register` | 注册设备获取 Device Id |
+| 设备注册 | `POST /api/v1/device/register` | 注册设备获取 Device Id |
 | 通知推送 | `GET /api/v1/push/notification` | 发送通知栏消息 |
+| 设备诊断 | `GET /api/v1/diagnostics/device` | 查询非敏感设备状态 |
 
 ### 示例：发送通知
 
@@ -109,11 +112,15 @@ docker logs -f push-server
 curl "http://your-server:8080/api/v1/push/notification?device_id=YOUR_DEVICE_KEY&title=测试消息&content=这是一条测试推送"
 ```
 
-### 示例：批量推送
+### 示例：设备诊断
 
 ```bash
-curl "http://your-server:8080/api/v1/push/batch?device_ids=key1,key2,key3&title=批量通知&body=发送给多个设备"
+curl "http://your-server:8080/api/v1/diagnostics/device?device_id=YOUR_DEVICE_KEY"
 ```
+
+诊断接口只返回设备是否存在、是否有公钥、是否活跃、最近活跃时间和待同步消息数；不会返回 Push Token、公钥内容、消息内容，也不提供聚合统计数据。
+
+> 批量推送、后台消息和表单刷新接口当前未开放；请使用单条通知接口。
 
 ### 完整文档
 
@@ -133,7 +140,7 @@ curl "http://your-server:8080/api/v1/push/batch?device_ids=key1,key2,key3&title=
 | `SERVER_NAME` | 服务器标识名称 | ❌ | `噔噔推送服务` |
 | `SERVER_VERSION` | 服务端版本号，用于 App 兼容性检查 | ❌ | `1.1.0` |
 | `SERVER_API_VERSION` | 服务端 API 兼容版本 | ❌ | `2` |
-| `SERVER_CAPABILITIES` | 服务端能力列表，逗号分隔 | ❌ | `message_crypto_v1,push_url_data,app_update_policy` |
+| `SERVER_CAPABILITIES` | 服务端能力列表，逗号分隔 | ❌ | `message_crypto_v1,push_url_data,app_update_policy,device_diagnostics` |
 | `SERVER_UPGRADE_URL` | App 提示用户升级服务端时展示的地址 | ❌ | `https://github.com/dengdeng-harmonyos/server` |
 | `PORT` | HTTP 服务端口 | ❌ | `8080` |
 
@@ -150,12 +157,12 @@ App 强制更新策略存储在数据库表 `app_update_policies` 中。发布 A
 ```json
 {
   "platform": "harmonyos",
-  "versionCode": 2,
+  "versionCode": 1000100,
   "versionName": "1.1.0",
-  "minVersionCode": 2,
+  "minVersionCode": 1000100,
   "forceUpdate": true,
   "storeUrl": "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng",
-  "releaseNotes": "支持点击推送消息直接打开链接，优化部分按钮点击区域。",
+  "releaseNotes": "新增推送链接生成器、消息筛选、同步状态和设备诊断，优化首次使用体验。",
   "enabled": true
 }
 ```
@@ -164,11 +171,11 @@ App 强制更新策略存储在数据库表 `app_update_policies` 中。发布 A
 
 ```sql
 UPDATE app_update_policies
-SET latest_version_code = 2,
+SET latest_version_code = 1000100,
     latest_version_name = '1.1.0',
-    min_version_code = 2,
+    min_version_code = 1000100,
     force_update = true,
-    release_notes = '支持点击推送消息直接打开链接，优化部分按钮点击区域。',
+    release_notes = '新增推送链接生成器、消息筛选、同步状态和设备诊断，优化首次使用体验。',
     updated_at = CURRENT_TIMESTAMP
 WHERE platform = 'harmonyos';
 ```
@@ -199,6 +206,10 @@ docker run --rm -v push-data:/data -v $(pwd):/backup alpine \
    - Push Token（AES-256-GCM 加密）
    - 设备元数据（类型、版本等）
    - RSA 公钥（可选）
+2. **待同步消息**（加密暂存）
+   - 仅保存 RSA/AES 加密后的消息内容
+   - 默认 30 天过期，App 同步确认后即从服务端删除
+   - 服务启动后立即清理过期消息，并每 6 小时重复清理
 
 ## 🏗️ 架构设计
 

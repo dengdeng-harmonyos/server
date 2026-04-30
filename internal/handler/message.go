@@ -164,7 +164,7 @@ func (h *MessageHandler) SaveEncryptedMessage(
 	serverName string,
 	encryptedMsg *service.EncryptedMessage,
 ) error {
-	expiresAt := time.Now().Add(7 * 24 * time.Hour) // 7天后过期
+	expiresAt := time.Now().Add(30 * 24 * time.Hour) // 30天后过期
 
 	_, err := h.db.Exec(`
 		INSERT INTO pending_messages 

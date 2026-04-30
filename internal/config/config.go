@@ -103,7 +103,7 @@ func Load() *Config {
 			Version:      getEnv("SERVER_VERSION", "1.1.0"),
 			Build:        getEnv("SERVER_BUILD", "dev"),
 			APIVersion:   getEnvInt64("SERVER_API_VERSION", 2),
-			Capabilities: getEnvStringList("SERVER_CAPABILITIES", []string{"message_crypto_v1", "push_url_data", "app_update_policy"}),
+			Capabilities: getEnvStringList("SERVER_CAPABILITIES", []string{"message_crypto_v1", "push_url_data", "app_update_policy", "device_diagnostics"}),
 			UpgradeURL:   getEnv("SERVER_UPGRADE_URL", "https://github.com/dengdeng-harmonyos/server"),
 		},
 		Database: DatabaseConfig{
