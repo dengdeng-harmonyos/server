@@ -155,7 +155,7 @@ App 强制更新策略存储在数据库表 `app_update_policies` 中。发布 A
   "minVersionCode": 2,
   "forceUpdate": true,
   "storeUrl": "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng",
-  "releaseNotes": "请升级到最新版本",
+  "releaseNotes": "支持点击推送消息直接打开链接，优化部分按钮点击区域。",
   "enabled": true
 }
 ```
@@ -168,7 +168,7 @@ SET latest_version_code = 2,
     latest_version_name = '1.1.0',
     min_version_code = 2,
     force_update = true,
-    release_notes = '请升级到最新版本',
+    release_notes = '支持点击推送消息直接打开链接，优化部分按钮点击区域。',
     updated_at = CURRENT_TIMESTAMP
 WHERE platform = 'harmonyos';
 ```
