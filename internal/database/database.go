@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	_ "github.com/lib/pq"
 	"github.com/dengdeng-harmonyos/server/internal/config"
+	_ "github.com/lib/pq"
 )
 
 type Database struct {
@@ -64,6 +64,35 @@ func (db *Database) InitTables() error {
 		`CREATE INDEX IF NOT EXISTS idx_devices_device_id ON devices(device_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_devices_is_active ON devices(is_active)`,
 		`CREATE INDEX IF NOT EXISTS idx_push_stats_date ON push_statistics(date)`,
+
+		// App更新策略表
+		`CREATE TABLE IF NOT EXISTS app_update_policies (
+			platform VARCHAR(32) PRIMARY KEY DEFAULT 'harmonyos',
+			latest_version_code BIGINT NOT NULL DEFAULT 0,
+			latest_version_name VARCHAR(64) NOT NULL DEFAULT '',
+			min_version_code BIGINT NOT NULL DEFAULT 0,
+			force_update BOOLEAN NOT NULL DEFAULT TRUE,
+			store_url TEXT NOT NULL DEFAULT 'store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng',
+			release_notes TEXT NOT NULL DEFAULT '',
+			enabled BOOLEAN NOT NULL DEFAULT TRUE,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`INSERT INTO app_update_policies (platform)
+			VALUES ('harmonyos')
+			ON CONFLICT (platform) DO NOTHING`,
+		`CREATE OR REPLACE FUNCTION update_updated_at_column()
+			RETURNS TRIGGER AS $$
+			BEGIN
+				NEW.updated_at = CURRENT_TIMESTAMP;
+				RETURN NEW;
+			END;
+			$$ LANGUAGE plpgsql`,
+		`DROP TRIGGER IF EXISTS update_app_update_policies_updated_at ON app_update_policies`,
+		`CREATE TRIGGER update_app_update_policies_updated_at
+			BEFORE UPDATE ON app_update_policies
+			FOR EACH ROW
+			EXECUTE FUNCTION update_updated_at_column()`,
 	}
 
 	for _, query := range queries {
