@@ -5,6 +5,6 @@
   "minVersionCode": 1000004,
   "forceUpdate": true,
   "storeUrl": "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng",
-  "releaseNotes": "Initial app update policy baseline.",
+  "releaseNotes": "支持点击推送消息直接打开链接，优化部分按钮点击区域。",
   "enabled": true
 }
