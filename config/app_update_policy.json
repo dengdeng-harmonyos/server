@@ -1,0 +1,10 @@
+{
+  "platform": "harmonyos",
+  "versionCode": 0,
+  "versionName": "",
+  "minVersionCode": 0,
+  "forceUpdate": true,
+  "storeUrl": "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng",
+  "releaseNotes": "",
+  "enabled": false
+}

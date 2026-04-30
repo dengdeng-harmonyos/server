@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/dengdeng-harmonyos/server/internal/config"
@@ -8,6 +9,7 @@ import (
 	"github.com/dengdeng-harmonyos/server/internal/handler"
 	"github.com/dengdeng-harmonyos/server/internal/logger"
 	"github.com/dengdeng-harmonyos/server/internal/middleware"
+	appservice "github.com/dengdeng-harmonyos/server/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -41,6 +43,13 @@ func main() {
 		log.Fatalf("Failed to initialize tables: %v", err)
 	}
 	logger.Info("✓ Database tables initialized")
+
+	logger.Info("Syncing app update policy from release manifest...")
+	if err := appservice.SyncAppUpdatePolicyFromManifest(context.Background(), db.DB, cfg.AppUpdate.PolicyFile); err != nil {
+		logger.Error("Failed to sync app update policy from manifest: %v", err)
+		log.Fatalf("Failed to sync app update policy from manifest: %v", err)
+	}
+	logger.Info("✓ App update policy manifest synced")
 
 	// 设置 Gin 模式
 	if cfg.Server.Mode == "release" {
