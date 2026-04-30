@@ -139,6 +139,21 @@ curl "http://your-server:8080/api/v1/push/batch?device_ids=key1,key2,key3&title=
 
 `GET /health` 会返回 `version`、`apiVersion`、`capabilities` 和 `upgradeUrl`。App 会用这些字段判断自部署服务端是否支持当前 App 功能；如果版本过低，用户需要更新服务端镜像或源码后再继续使用该服务端。
 
+### App 更新策略
+
+App 强制更新策略存储在数据库表 `app_update_policies` 中，服务启动时不需要通过环境变量维护版本号。默认会创建 `harmonyos` 平台记录，表示不强制更新。
+
+```sql
+UPDATE app_update_policies
+SET latest_version_code = 2,
+    latest_version_name = '1.1.0',
+    min_version_code = 2,
+    force_update = true,
+    release_notes = '请升级到最新版本',
+    updated_at = CURRENT_TIMESTAMP
+WHERE platform = 'harmonyos';
+```
+
 ### 数据持久化
 
 Docker 容器使用命名卷存储 PostgreSQL 数据：
