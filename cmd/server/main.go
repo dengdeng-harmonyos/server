@@ -75,7 +75,7 @@ func main() {
 	messageHandler := handler.NewMessageHandler(db.DB)
 	logger.Info("✓ Message handler initialized")
 
-	appUpdateHandler := handler.NewAppUpdateHandler(cfg.AppUpdate)
+	appUpdateHandler := handler.NewAppUpdateHandler(db.DB, cfg.AppUpdate)
 	logger.Info("✓ App update handler initialized")
 
 	// API v1 路由
