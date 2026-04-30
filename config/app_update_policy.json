@@ -1,10 +1,10 @@
 {
   "platform": "harmonyos",
-  "versionCode": 1000004,
-  "versionName": "1.0.0",
-  "minVersionCode": 1000004,
+  "versionCode": 1000100,
+  "versionName": "1.1.0",
+  "minVersionCode": 1000100,
   "forceUpdate": true,
   "storeUrl": "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng",
-  "releaseNotes": "支持点击推送消息直接打开链接，优化部分按钮点击区域。",
+  "releaseNotes": "新增推送链接生成器、消息筛选、同步状态和设备诊断，优化首次使用体验。",
   "enabled": true
 }

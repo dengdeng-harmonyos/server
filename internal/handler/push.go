@@ -64,23 +64,16 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 		return
 	}
 
-	// 解析额外数据（保持数组格式）
-	var dataArray []map[string]interface{}
-	if req.Data != "" {
-		// 解析为数组格式 [{"key":"xxx", "value":"xxx"}]
-		if err := json.Unmarshal([]byte(req.Data), &dataArray); err != nil {
-			RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid data format, expected array of {key, value}")
-			return
-		}
+	dataArray, err := parseNotificationData(req.Data)
+	if err != nil {
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, err.Error())
+		return
 	}
 
 	messageURL := extractMessageURL(dataArray)
-	if messageURL != "" {
-		parsedURL, err := url.ParseRequestURI(messageURL)
-		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
-			RespondError(c, http.StatusBadRequest, models.InvalidParams, "Invalid __url format, expected http or https URL")
-			return
-		}
+	if err := validateMessageURL(messageURL); err != nil {
+		RespondError(c, http.StatusBadRequest, models.InvalidParams, err.Error())
+		return
 	}
 
 	// 获取设备公钥
@@ -136,6 +129,19 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	})
 }
 
+func parseNotificationData(rawData string) ([]map[string]interface{}, error) {
+	var dataArray []map[string]interface{}
+	if rawData == "" {
+		return dataArray, nil
+	}
+
+	if err := json.Unmarshal([]byte(rawData), &dataArray); err != nil {
+		return nil, errInvalidNotificationData()
+	}
+
+	return dataArray, nil
+}
+
 func extractMessageURL(dataArray []map[string]interface{}) string {
 	for _, item := range dataArray {
 		keyValue, ok := item["key"].(string)
@@ -148,4 +154,32 @@ func extractMessageURL(dataArray []map[string]interface{}) string {
 		}
 	}
 	return ""
+}
+
+func validateMessageURL(messageURL string) error {
+	if messageURL == "" {
+		return nil
+	}
+
+	parsedURL, err := url.ParseRequestURI(messageURL)
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		return errInvalidMessageURL()
+	}
+	return nil
+}
+
+func errInvalidNotificationData() error {
+	return &pushValidationError{message: "Invalid data format, expected array of {key, value}"}
+}
+
+func errInvalidMessageURL() error {
+	return &pushValidationError{message: "Invalid __url format, expected http or https URL"}
+}
+
+type pushValidationError struct {
+	message string
+}
+
+func (e *pushValidationError) Error() string {
+	return e.message
 }
