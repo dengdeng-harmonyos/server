@@ -169,12 +169,12 @@ App 强制更新策略存储在数据库表 `app_update_policies` 中。发布 A
 ```json
 {
   "platform": "harmonyos",
-  "versionCode": 1000100,
-  "versionName": "1.1.0",
-  "minVersionCode": 1000100,
+  "versionCode": 1000101,
+  "versionName": "1.1.1",
+  "minVersionCode": 1000101,
   "forceUpdate": true,
   "storeUrl": "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng",
-  "releaseNotes": "新增推送链接生成器、消息筛选、同步状态和设备诊断，优化首次使用体验。",
+  "releaseNotes": "新增点击通知打开 App URL Scheme，支持从推送直达目标 App 页面；升级服务端兼容性检查，提升链接跳转安全性。",
   "enabled": true
 }
 ```
@@ -183,11 +183,11 @@ App 强制更新策略存储在数据库表 `app_update_policies` 中。发布 A
 
 ```sql
 UPDATE app_update_policies
-SET latest_version_code = 1000100,
-    latest_version_name = '1.1.0',
-    min_version_code = 1000100,
+SET latest_version_code = 1000101,
+    latest_version_name = '1.1.1',
+    min_version_code = 1000101,
     force_update = true,
-    release_notes = '新增推送链接生成器、消息筛选、同步状态和设备诊断，优化首次使用体验。',
+    release_notes = '新增点击通知打开 App URL Scheme，支持从推送直达目标 App 页面；升级服务端兼容性检查，提升链接跳转安全性。',
     updated_at = CURRENT_TIMESTAMP
 WHERE platform = 'harmonyos';
 ```
