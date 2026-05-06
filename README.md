@@ -112,6 +112,18 @@ docker logs -f push-server
 curl "http://your-server:8080/api/v1/push/notification?device_id=YOUR_DEVICE_KEY&title=测试消息&content=这是一条测试推送"
 ```
 
+### 示例：点击通知后打开链接或 App
+
+`data` 中 key 为 `__url` 的项会在用户点击通知后打开，支持网页链接和合法 App URL Scheme。手写请求时请对参数做 URL 编码；`file`、`javascript`、`data`、`content`、`tel`、`sms`、`mailto` 等高风险 scheme 会被拒绝。
+
+```bash
+curl --get "http://your-server:8080/api/v1/push/notification" \
+  --data-urlencode "device_id=YOUR_DEVICE_KEY" \
+  --data-urlencode "title=测试消息" \
+  --data-urlencode "content=点击通知后跳转" \
+  --data-urlencode 'data=[{"key":"__url","value":"myapp://page/detail?id=1"}]'
+```
+
 ### 示例：设备诊断
 
 ```bash
@@ -139,8 +151,8 @@ curl "http://your-server:8080/api/v1/diagnostics/device?device_id=YOUR_DEVICE_KE
 | `PUSH_TOKEN_ENCRYPTION_KEY` | Push Token 加密密钥（32字节，Base64） | ✅ | - |
 | `SERVER_NAME` | 服务器标识名称 | ❌ | `噔噔推送服务` |
 | `SERVER_VERSION` | 服务端版本号，用于 App 兼容性检查 | ❌ | `1.1.0` |
-| `SERVER_API_VERSION` | 服务端 API 兼容版本 | ❌ | `2` |
-| `SERVER_CAPABILITIES` | 服务端能力列表，逗号分隔 | ❌ | `message_crypto_v1,push_url_data,app_update_policy,device_diagnostics` |
+| `SERVER_API_VERSION` | 服务端 API 兼容版本 | ❌ | `3` |
+| `SERVER_CAPABILITIES` | 服务端能力列表，逗号分隔 | ❌ | `message_crypto_v1,push_url_data,push_deep_link_scheme,app_update_policy,device_diagnostics` |
 | `SERVER_UPGRADE_URL` | App 提示用户升级服务端时展示的地址 | ❌ | `https://github.com/dengdeng-harmonyos/server` |
 | `PORT` | HTTP 服务端口 | ❌ | `8080` |
 

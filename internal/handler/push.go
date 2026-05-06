@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strings"
+	"unicode"
 
 	"github.com/dengdeng-harmonyos/server/internal/config"
 	"github.com/dengdeng-harmonyos/server/internal/database"
@@ -13,6 +15,25 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
+
+const maxMessageURLLength = 2048
+
+var blockedMessageURLSchemes = map[string]struct{}{
+	"app-settings":  {},
+	"content":       {},
+	"data":          {},
+	"facetime":      {},
+	"file":          {},
+	"hmos-settings": {},
+	"intent":        {},
+	"javascript":    {},
+	"mailto":        {},
+	"market":        {},
+	"ohos":          {},
+	"settings":      {},
+	"sms":           {},
+	"tel":           {},
+}
 
 type PushHandler struct {
 	db             *database.Database
@@ -161,11 +182,62 @@ func validateMessageURL(messageURL string) error {
 		return nil
 	}
 
-	parsedURL, err := url.ParseRequestURI(messageURL)
-	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+	if messageURL != strings.TrimSpace(messageURL) ||
+		len(messageURL) > maxMessageURLLength ||
+		containsUnsafeURLCharacter(messageURL) {
 		return errInvalidMessageURL()
 	}
+
+	parsedURL, err := url.ParseRequestURI(messageURL)
+	if err != nil || parsedURL.Scheme == "" {
+		return errInvalidMessageURL()
+	}
+
+	scheme := strings.ToLower(parsedURL.Scheme)
+	if !isValidMessageURLScheme(scheme) {
+		return errInvalidMessageURL()
+	}
+	if (scheme == "http" || scheme == "https") && parsedURL.Host == "" {
+		return errInvalidMessageURL()
+	}
+	if _, blocked := blockedMessageURLSchemes[scheme]; blocked {
+		return errInvalidMessageURL()
+	}
+
 	return nil
+}
+
+func containsUnsafeURLCharacter(messageURL string) bool {
+	for _, r := range messageURL {
+		if unicode.IsSpace(r) || unicode.IsControl(r) {
+			return true
+		}
+	}
+	return false
+}
+
+func isValidMessageURLScheme(scheme string) bool {
+	if scheme == "" || !isASCIIAlpha(scheme[0]) {
+		return false
+	}
+
+	for i := 1; i < len(scheme); i++ {
+		c := scheme[i]
+		if isASCIIAlpha(c) || isASCIIDigit(c) || c == '+' || c == '-' || c == '.' {
+			continue
+		}
+		return false
+	}
+
+	return true
+}
+
+func isASCIIAlpha(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+func isASCIIDigit(c byte) bool {
+	return c >= '0' && c <= '9'
 }
 
 func errInvalidNotificationData() error {
@@ -173,7 +245,7 @@ func errInvalidNotificationData() error {
 }
 
 func errInvalidMessageURL() error {
-	return &pushValidationError{message: "Invalid __url format, expected http or https URL"}
+	return &pushValidationError{message: "Invalid __url format, expected a safe http(s) URL or app URL scheme"}
 }
 
 type pushValidationError struct {
