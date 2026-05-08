@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS devices (
     os_version VARCHAR(50),                           -- HarmonyOS版本
     app_version VARCHAR(50),                          -- App版本
     is_active BOOLEAN DEFAULT TRUE,                   -- 是否活跃
+    last_background_push_attempt_at TIMESTAMPTZ,      -- 最近一次后台唤醒Push尝试时间
     last_active_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -97,6 +98,7 @@ CREATE TRIGGER update_devices_updated_at
 -- 添加字段注释
 COMMENT ON COLUMN devices.device_model IS '设备型号，如 Mate60 Pro';
 COMMENT ON COLUMN devices.device_manufacturer IS '设备制造商，如 HUAWEI';
+COMMENT ON COLUMN devices.last_background_push_attempt_at IS '最近一次后台唤醒Push尝试时间 (TIMESTAMPTZ, UTC)';
 COMMENT ON COLUMN devices.last_active_at IS '最后活跃时间 (TIMESTAMPTZ, UTC)';
 COMMENT ON COLUMN devices.created_at IS '创建时间 (TIMESTAMPTZ, UTC)';
 COMMENT ON COLUMN devices.updated_at IS '更新时间 (TIMESTAMPTZ, UTC)';

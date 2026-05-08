@@ -1,10 +1,10 @@
 {
   "platform": "harmonyos",
-  "versionCode": 1000101,
-  "versionName": "1.1.1",
-  "minVersionCode": 1000101,
+  "versionCode": 1000102,
+  "versionName": "1.1.2",
+  "minVersionCode": 1000102,
   "forceUpdate": true,
   "storeUrl": "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng",
-  "releaseNotes": "新增点击通知打开 App URL Scheme，支持从推送直达目标 App 页面；升级服务端兼容性检查，提升链接跳转安全性。",
+  "releaseNotes": "新增后台 Push 唤醒同步，有待收消息时可更早同步到本机；旧版本 App 需要升级后继续使用。",
   "enabled": true
 }

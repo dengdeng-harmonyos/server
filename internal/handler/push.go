@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/dengdeng-harmonyos/server/internal/config"
@@ -16,7 +17,10 @@ import (
 	"github.com/google/uuid"
 )
 
-const maxMessageURLLength = 2048
+const (
+	maxMessageURLLength        = 2048
+	backgroundPushWakeCooldown = 30 * time.Minute
+)
 
 var blockedMessageURLSchemes = map[string]struct{}{
 	"app-settings":  {},
@@ -42,6 +46,12 @@ type PushHandler struct {
 	serverName     string
 	cryptoService  *service.CryptoService
 	messageHandler *MessageHandler
+}
+
+type backgroundSyncSignal struct {
+	Type       string `json:"type"`
+	ServerName string `json:"server_name"`
+	CreatedAt  string `json:"created_at"`
 }
 
 func NewPushHandler(db *database.Database, deviceHandler *DeviceHandler, cfg config.HuaweiPushConfig, serverName string) (*PushHandler, error) {
@@ -119,7 +129,18 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 		return
 	}
 
-	// 2. 发送华为推送通知（明文内容，用于显示通知）
+	// 2. 先保存加密消息，确保后台唤醒或普通通知到达时 App 已有 pending 可拉取。
+	err = h.messageHandler.SaveEncryptedMessage(req.DeviceId, h.serverName, encryptedMsg)
+	if err != nil {
+		logger.ErrorWithStack(err, "Failed to save encrypted message for device: %s", req.DeviceId)
+		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to save message: "+err.Error())
+		return
+	}
+
+	// 3. 有 pending 消息时发送一次低频后台唤醒信号，失败不影响普通通知。
+	h.maybeSendBackgroundSyncSignal(req.DeviceId, pushToken)
+
+	// 4. 发送华为推送通知（明文内容，用于显示通知）
 	notificationData := map[string]interface{}{
 		"type":          "new_message",
 		"server_name":   h.serverName,
@@ -135,19 +156,75 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 		return
 	}
 
-	// 3. 保存加密消息到数据库
-	err = h.messageHandler.SaveEncryptedMessage(req.DeviceId, h.serverName, encryptedMsg)
-	if err != nil {
-		logger.ErrorWithStack(err, "Failed to save encrypted message for device: %s", req.DeviceId)
-		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to save message: "+err.Error())
-		return
-	}
-
 	logger.Info("Successfully sent notification to device: %s, title: %s", req.DeviceId, req.Title)
 
 	RespondSuccess(c, http.StatusOK, gin.H{
 		"message": "Notification sent successfully",
 	})
+}
+
+func (h *PushHandler) maybeSendBackgroundSyncSignal(deviceID string, pushToken string) {
+	now := time.Now().UTC()
+	shouldSend, err := h.reserveBackgroundPushWake(deviceID, now)
+	if err != nil {
+		logger.ErrorWithStack(err, "Failed to reserve background push wake for device: %s", deviceID)
+		return
+	}
+	if !shouldSend {
+		logger.Info("Skipped background push wake for device: %s within cooldown window", deviceID)
+		return
+	}
+
+	payload, err := json.Marshal(backgroundSyncSignal{
+		Type:       "sync_pending",
+		ServerName: h.serverName,
+		CreatedAt:  now.Format(time.RFC3339),
+	})
+	if err != nil {
+		logger.ErrorWithStack(err, "Failed to build background sync signal for device: %s", deviceID)
+		return
+	}
+
+	if err := h.pushService.SendBackgroundMessage(pushToken, string(payload)); err != nil {
+		logger.ErrorWithStack(err, "Failed to send background sync signal for device: %s", deviceID)
+		return
+	}
+	logger.Info("Background sync signal sent for device: %s", deviceID)
+}
+
+func (h *PushHandler) reserveBackgroundPushWake(deviceID string, now time.Time) (bool, error) {
+	cutoff := backgroundPushWakeCutoff(now)
+	result, err := h.db.DB.Exec(`
+		UPDATE devices
+		SET last_background_push_attempt_at = $3,
+			updated_at = NOW()
+		WHERE device_id = $1
+			AND is_active = TRUE
+			AND EXISTS (
+				SELECT 1
+				FROM pending_messages
+				WHERE device_id = $1
+					AND delivered = false
+					AND expires_at > NOW()
+			)
+			AND (
+				last_background_push_attempt_at IS NULL
+				OR last_background_push_attempt_at <= $2
+			)
+	`, deviceID, cutoff, now)
+	if err != nil {
+		return false, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rowsAffected > 0, nil
+}
+
+func backgroundPushWakeCutoff(now time.Time) time.Time {
+	return now.UTC().Add(-backgroundPushWakeCooldown)
 }
 
 func parseNotificationData(rawData string) ([]map[string]interface{}, error) {

@@ -44,11 +44,13 @@ func (db *Database) InitTables() error {
 			os_version VARCHAR(50),
 			app_version VARCHAR(50),
 			is_active BOOLEAN DEFAULT TRUE,
+			last_background_push_attempt_at TIMESTAMPTZ,
 			last_active_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`ALTER TABLE devices ADD COLUMN IF NOT EXISTS public_key TEXT`,
+		`ALTER TABLE devices ADD COLUMN IF NOT EXISTS last_background_push_attempt_at TIMESTAMPTZ`,
 
 		// 推送统计表（仅统计数据，不记录具体内容）
 		`CREATE TABLE IF NOT EXISTS push_statistics (
