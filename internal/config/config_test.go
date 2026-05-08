@@ -13,6 +13,9 @@ func TestDefaultServerCompatibilityRequiresDeepLinkScheme(t *testing.T) {
 	if !containsCapability(cfg.Server.Capabilities, "push_deep_link_scheme") {
 		t.Fatalf("default capabilities = %v, want push_deep_link_scheme", cfg.Server.Capabilities)
 	}
+	if !containsCapability(cfg.Server.Capabilities, "background_push_wake") {
+		t.Fatalf("default capabilities = %v, want background_push_wake", cfg.Server.Capabilities)
+	}
 }
 
 func containsCapability(capabilities []string, expected string) bool {

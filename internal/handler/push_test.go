@@ -3,6 +3,7 @@ package handler
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseNotificationDataAndExtractURL(t *testing.T) {
@@ -82,5 +83,14 @@ func TestValidateMessageURLRejectsMalformedInput(t *testing.T) {
 		if err := validateMessageURL(invalidURL); err == nil {
 			t.Fatalf("validateMessageURL accepted malformed URL %q", invalidURL)
 		}
+	}
+}
+
+func TestBackgroundPushWakeCutoffUsesThirtyMinuteCooldown(t *testing.T) {
+	now := time.Date(2026, 5, 7, 12, 0, 0, 0, time.UTC)
+	want := time.Date(2026, 5, 7, 11, 30, 0, 0, time.UTC)
+
+	if got := backgroundPushWakeCutoff(now); !got.Equal(want) {
+		t.Fatalf("backgroundPushWakeCutoff = %s, want %s", got, want)
 	}
 }
