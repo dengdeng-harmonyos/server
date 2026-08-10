@@ -21,7 +21,8 @@
 
 ### 🔒 安全与隐私承诺
 
-- **🔑 RSA 公钥支持**：消息使用端到端消息加密，app端同步完即删除服务端加密数据
+- **🔑 RSA 公钥支持**：待同步消息使用 RSA/AES 加密，App 端同步完即删除服务端密文
+- **📢 通知展示边界**：HarmonyOS 普通通知使用 `push-type=0`，标题、正文和点击数据会明文发送给华为 Push；服务端暂存的待同步消息仍保持加密
 - **🔐 端到端加密**：Push Token 使用 AES-256-GCM 加密存储
 - **🎭 匿名化设计**：使用随机生成的 Device Id，与真实设备无关联
 - **🔑 配置编译时嵌入**：敏感配置在构建时嵌入二进制文件，无需配置文件
@@ -149,7 +150,6 @@ curl "http://your-server:8080/api/v1/diagnostics/device?device_id=YOUR_DEVICE_KE
 | 环境变量 | 说明 | 必需 | 默认值 |
 |---------|------|:----:|--------|
 | `PUSH_TOKEN_ENCRYPTION_KEY` | Push Token 加密密钥（32字节，Base64） | ✅ | - |
-| `PUSH_ENCRYPTED_NOTIFICATION_EXTENSION` | 使用 push-type=2 在设备通知扩展中解密显示（需华为特殊权益） | ❌ | `false` |
 | `SERVER_NAME` | 服务器标识名称 | ❌ | `噔噔推送服务` |
 | `SERVER_VERSION` | 服务端版本号，用于 App 兼容性检查 | ❌ | `1.1.3` |
 | `SERVER_API_VERSION` | 服务端 API 兼容版本 | ❌ | `3` |

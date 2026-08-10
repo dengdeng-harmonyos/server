@@ -35,11 +35,10 @@ type DatabaseConfig struct {
 }
 
 type HuaweiPushConfig struct {
-	ProjectID                      string
-	ServiceAccountFile             string // JWT私钥文件路径
-	JWTExpiry                      int    // JWT过期时间（秒）
-	PushAPIURL                     string
-	EncryptedNotificationExtension bool // 需要华为 push-type=2 特殊权益
+	ProjectID          string
+	ServiceAccountFile string // JWT私钥文件路径
+	JWTExpiry          int    // JWT过期时间（秒）
+	PushAPIURL         string
 }
 
 type SecurityConfig struct {
@@ -123,11 +122,10 @@ func Load() *Config {
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
 		HuaweiPush: HuaweiPushConfig{
-			ProjectID:                      projectID,
-			ServiceAccountFile:             "", // 不再使用文件，配置已嵌入
-			JWTExpiry:                      3600,
-			PushAPIURL:                     "https://push-api.cloud.huawei.com/v3",
-			EncryptedNotificationExtension: getEnvBool("PUSH_ENCRYPTED_NOTIFICATION_EXTENSION", false),
+			ProjectID:          projectID,
+			ServiceAccountFile: "", // 不再使用文件，配置已嵌入
+			JWTExpiry:          3600,
+			PushAPIURL:         "https://push-api.cloud.huawei.com/v3",
 		},
 		Security: SecurityConfig{
 			EncryptionKey:         getEncryptionKey(),
