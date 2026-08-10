@@ -205,23 +205,6 @@ type BackgroundPayload struct {
 	ProxyData string `json:"proxyData,omitempty"` // 数据代理："ENABLE"
 }
 
-// 语音播报消息Payload（push-type=2）
-type ExtensionPayload struct {
-	Notification Notification `json:"notification"` // category必须为"PLAY_VOICE"
-	ExtraData    string       `json:"extraData"`    // 语音播报额外数据（必填）
-}
-
-// EncryptedNotificationEnvelope 只包含密文和定位本地私钥所需的非秘密标识。
-type EncryptedNotificationEnvelope struct {
-	Version          int    `json:"version"`
-	DeviceID         string `json:"device_id"`
-	MessageID        string `json:"message_id"`
-	ServerName       string `json:"server_name"`
-	EncryptedAESKey  string `json:"encrypted_aes_key"`
-	EncryptedContent string `json:"encrypted_content"`
-	IV               string `json:"iv"`
-}
-
 // 应用内通话消息Payload（push-type=10）
 type VoIPCallPayload struct {
 	ExtraData string `json:"extraData"` // 传递给应用的数据（必填）
@@ -234,41 +217,37 @@ type PushResponse struct {
 	RequestID string `json:"requestId"`
 }
 
-// SendEncryptedNotification 向华为只发送密文或通用占位文案，绝不发送原始标题、正文和链接。
-func (s *HuaweiPushService) SendEncryptedNotification(pushToken string, envelope EncryptedNotificationEnvelope) error {
-	envelopeJSON, err := json.Marshal(envelope)
-	if err != nil {
-		return fmt.Errorf("failed to marshal encrypted notification envelope: %w", err)
-	}
-
+// SendNotification 发送普通通知消息（push-type=0）。
+// HarmonyOS 普通通知由系统直接展示，因此标题、正文和点击数据会明文发送给华为 Push。
+func (s *HuaweiPushService) SendNotification(pushToken, title, body string, data map[string]interface{}) error {
 	clickAction := ClickAction{
 		ActionType: 0,
-		Data: map[string]interface{}{
-			"type":              "encrypted_message",
-			"server_name":       envelope.ServerName,
-			"encrypted_payload": string(envelopeJSON),
-		},
 	}
-	placeholder := Notification{
+	if data != nil {
+		clickAction.Data = data
+	}
+
+	processedBody := strings.ReplaceAll(body, "\\n", "\n")
+	notification := Notification{
 		Category:    "WORK",
-		Title:       "噔噔",
-		Body:        "收到一条加密消息",
+		Title:       "[工作提醒]" + title,
+		Body:        processedBody,
 		ClickAction: clickAction,
 		Badge:       &Badge{AddNum: 1},
 	}
-	options := &PushOptions{TestMessage: false, TTL: 86400}
-
-	if s.config.EncryptedNotificationExtension {
-		// push-type=2 会进入 RemoteNotificationExtensionAbility，但必须先取得华为特殊权益。
-		placeholder.Category = "PLAY_VOICE"
-		return s.sendPush(2, []string{pushToken}, ExtensionPayload{
-			Notification: placeholder,
-			ExtraData:    string(envelopeJSON),
-		}, options)
+	if strings.Contains(processedBody, "\n") {
+		notification.Style = 3
+		lines := strings.Split(processedBody, "\n")
+		if len(lines) > 3 {
+			lines = lines[:3]
+		}
+		notification.InboxContent = lines
 	}
 
-	// 无特殊权益时仍把密文放在点击数据中，系统通知只显示不敏感的通用文案。
-	return s.sendPush(0, []string{pushToken}, AlertPayload{Notification: placeholder}, options)
+	return s.sendPush(0, []string{pushToken}, AlertPayload{Notification: notification}, &PushOptions{
+		TestMessage: false,
+		TTL:         86400,
+	})
 }
 
 // SendFormUpdate 发送卡片刷新消息

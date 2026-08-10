@@ -130,7 +130,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	}
 
 	// 2. 先保存加密消息，确保后台唤醒或普通通知到达时 App 已有 pending 可拉取。
-	messageID, err := h.messageHandler.SaveEncryptedMessage(req.DeviceId, h.serverName, encryptedMsg)
+	_, err = h.messageHandler.SaveEncryptedMessage(req.DeviceId, h.serverName, encryptedMsg)
 	if err != nil {
 		logger.ErrorWithStack(err, "Failed to save encrypted message for device: %s", req.DeviceId)
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to save message: "+err.Error())
@@ -146,23 +146,24 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	logger.Debug("Huawei push original content: %s", string(originalJSON))
 	logger.Debug("Huawei push encrypted content: %s", string(encryptedJSON))
 
-	// 5. 华为侧只接收密文与通用占位文案，不再接收原标题、正文和深链。
-	err = h.pushService.SendEncryptedNotification(pushToken, service.EncryptedNotificationEnvelope{
-		Version:          1,
-		DeviceID:         req.DeviceId,
-		MessageID:        messageID,
-		ServerName:       h.serverName,
-		EncryptedAESKey:  encryptedMsg.EncryptedAESKey,
-		EncryptedContent: encryptedMsg.EncryptedContent,
-		IV:               encryptedMsg.IV,
-	})
+	// 5. HarmonyOS 普通通知只能使用 push-type=0，由华为直接展示明文标题和正文。
+	// pending message 仍保持 RSA/AES 加密，供 App 同步后在本地解密。
+	notificationData := map[string]interface{}{
+		"type":          "new_message",
+		"server_name":   h.serverName,
+		"__server_name": h.serverName,
+	}
+	if messageURL != "" {
+		notificationData["__url"] = messageURL
+	}
+	err = h.pushService.SendNotification(pushToken, req.Title, req.Content, notificationData)
 	if err != nil {
 		logger.ErrorWithStack(err, "Failed to send push notification for device: %s", req.DeviceId)
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to send notification: "+err.Error())
 		return
 	}
 
-	logger.Info("Successfully sent encrypted notification to device: %s", req.DeviceId)
+	logger.Info("Successfully sent notification to device: %s", req.DeviceId)
 
 	RespondSuccess(c, http.StatusOK, gin.H{
 		"message": "Notification sent successfully",
