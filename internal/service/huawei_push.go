@@ -211,6 +211,17 @@ type ExtensionPayload struct {
 	ExtraData    string       `json:"extraData"`    // 语音播报额外数据（必填）
 }
 
+// EncryptedNotificationEnvelope 只包含密文和定位本地私钥所需的非秘密标识。
+type EncryptedNotificationEnvelope struct {
+	Version          int    `json:"version"`
+	DeviceID         string `json:"device_id"`
+	MessageID        string `json:"message_id"`
+	ServerName       string `json:"server_name"`
+	EncryptedAESKey  string `json:"encrypted_aes_key"`
+	EncryptedContent string `json:"encrypted_content"`
+	IV               string `json:"iv"`
+}
+
 // 应用内通话消息Payload（push-type=10）
 type VoIPCallPayload struct {
 	ExtraData string `json:"extraData"` // 传递给应用的数据（必填）
@@ -223,56 +234,41 @@ type PushResponse struct {
 	RequestID string `json:"requestId"`
 }
 
-// SendNotification 发送通知消息（Alert）
-func (s *HuaweiPushService) SendNotification(pushToken, title, body string, data map[string]interface{}) error {
-	logger.Debug("Sending notification: title=%s, body=%s, token=%s...", title, body, pushToken[:20])
+// SendEncryptedNotification 向华为只发送密文或通用占位文案，绝不发送原始标题、正文和链接。
+func (s *HuaweiPushService) SendEncryptedNotification(pushToken string, envelope EncryptedNotificationEnvelope) error {
+	envelopeJSON, err := json.Marshal(envelope)
+	if err != nil {
+		return fmt.Errorf("failed to marshal encrypted notification envelope: %w", err)
+	}
 
-	// 构建点击行为
 	clickAction := ClickAction{
-		ActionType: 0, // 0: 打开应用首页
+		ActionType: 0,
+		Data: map[string]interface{}{
+			"type":              "encrypted_message",
+			"server_name":       envelope.ServerName,
+			"encrypted_payload": string(envelopeJSON),
+		},
 	}
-
-	// 如果有额外数据，设置为点击时传递的数据
-	if data != nil {
-		clickAction.Data = data
-		logger.Debug("  Extra data: %+v", data)
-	}
-
-	notification := Notification{
-		Category:    "WORK", // 默认使用工作提醒类型，可根据业务需求修改
-		Title:       "[工作提醒]" + title,
-		Body:        body,
+	placeholder := Notification{
+		Category:    "WORK",
+		Title:       "噔噔",
+		Body:        "收到一条加密消息",
 		ClickAction: clickAction,
-		Badge:       &Badge{AddNum: 1}, // 默认角标加1
+		Badge:       &Badge{AddNum: 1},
+	}
+	options := &PushOptions{TestMessage: false, TTL: 86400}
+
+	if s.config.EncryptedNotificationExtension {
+		// push-type=2 会进入 RemoteNotificationExtensionAbility，但必须先取得华为特殊权益。
+		placeholder.Category = "PLAY_VOICE"
+		return s.sendPush(2, []string{pushToken}, ExtensionPayload{
+			Notification: placeholder,
+			ExtraData:    string(envelopeJSON),
+		}, options)
 	}
 
-	// 判断body是否包含\n（支持URL编码的\n和实际的换行符）
-	// 先将字面量的\n转换为实际的换行符
-	processedBody := strings.ReplaceAll(body, "\\n", "\n")
-
-	if strings.Contains(processedBody, "\n") {
-		notification.Style = 3   // 多行文本样式
-		lines := strings.Split(processedBody, "\n")
-		if len(lines) > 3 {
-			lines = lines[:3]
-		}
-		notification.InboxContent = lines
-	} else {
-		notification.Body = processedBody
-	}
-
-	// 构建通知消息payload
-	payload := AlertPayload{
-		Notification: notification,
-	}
-
-	// 默认使用测试消息选项
-	options := &PushOptions{
-		TestMessage: false,
-		TTL:         86400, // 1天
-	}
-
-	return s.sendPush(0, []string{pushToken}, payload, options)
+	// 无特殊权益时仍把密文放在点击数据中，系统通知只显示不敏感的通用文案。
+	return s.sendPush(0, []string{pushToken}, AlertPayload{Notification: placeholder}, options)
 }
 
 // SendFormUpdate 发送卡片刷新消息
@@ -322,40 +318,6 @@ func (s *HuaweiPushService) SendVoIPCall(pushToken string, extraData string) err
 	return s.sendPush(10, []string{pushToken}, payload, options)
 }
 
-// SendBatchNotification 批量发送通知消息
-func (s *HuaweiPushService) SendBatchNotification(pushTokens []string, title, body string, data map[string]interface{}) error {
-	if len(pushTokens) > 1000 {
-		return fmt.Errorf("batch size exceeds limit: %d (max 1000)", len(pushTokens))
-	}
-
-	// 构建点击行为
-	clickAction := ClickAction{
-		ActionType: 0, // 0: 打开应用首页
-	}
-
-	if data != nil {
-		clickAction.Data = data
-	}
-
-	// 构建通知消息payload
-	payload := AlertPayload{
-		Notification: Notification{
-			Category:    "WORK",
-			Title:       "[工作提醒]" + title,
-			Body:        body,
-			ClickAction: clickAction,
-			Badge:       &Badge{AddNum: 1}, // 默认角标加1
-		},
-	}
-
-	options := &PushOptions{
-		TestMessage: false,
-		TTL:         86400,
-	}
-
-	return s.sendPush(0, pushTokens, payload, options)
-}
-
 // sendPush 通用推送方法
 func (s *HuaweiPushService) sendPush(pushType int, tokens []string, payload interface{}, options *PushOptions) error {
 	logger.Debug("sendPush: type=%d, tokens=%d", pushType, len(tokens))
@@ -381,7 +343,10 @@ func (s *HuaweiPushService) sendPush(pushType int, tokens []string, payload inte
 	if err != nil {
 		return fmt.Errorf("failed to marshal request: %w", err)
 	}
-	logger.Debug("Request payload: %s", string(jsonData))
+	payloadJSON, _ := json.Marshal(payload)
+	optionsJSON, _ := json.Marshal(options)
+	logger.Debug("Huawei push payload: type=%d targetCount=%d payload=%s pushOptions=%s",
+		pushType, len(tokens), string(payloadJSON), string(optionsJSON))
 
 	// 构建请求
 	url := fmt.Sprintf("%s/%s/messages:send", s.config.PushAPIURL, s.projectID)
@@ -480,14 +445,5 @@ func (s *HuaweiPushService) getAccessToken() (string, error) {
 	s.tokenExpiry = time.Unix(exp, 0)
 
 	logger.Info("✓ New JWT token generated (expires in 3600s)")
-	logger.Debug("JWT token: %s...", jwtToken[:min(50, len(jwtToken))])
-
 	return s.accessToken, nil
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

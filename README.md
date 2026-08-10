@@ -149,6 +149,7 @@ curl "http://your-server:8080/api/v1/diagnostics/device?device_id=YOUR_DEVICE_KE
 | 环境变量 | 说明 | 必需 | 默认值 |
 |---------|------|:----:|--------|
 | `PUSH_TOKEN_ENCRYPTION_KEY` | Push Token 加密密钥（32字节，Base64） | ✅ | - |
+| `PUSH_ENCRYPTED_NOTIFICATION_EXTENSION` | 使用 push-type=2 在设备通知扩展中解密显示（需华为特殊权益） | ❌ | `false` |
 | `SERVER_NAME` | 服务器标识名称 | ❌ | `噔噔推送服务` |
 | `SERVER_VERSION` | 服务端版本号，用于 App 兼容性检查 | ❌ | `1.1.2` |
 | `SERVER_API_VERSION` | 服务端 API 兼容版本 | ❌ | `3` |
