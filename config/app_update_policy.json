@@ -5,6 +5,6 @@
   "minVersionCode": 1000103,
   "forceUpdate": true,
   "storeUrl": "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng",
-  "releaseNotes": "提升隐私与消息安全：修复首次启动授权流程，推送内容改为加密传输，增强消息去重与本地密钥保护；旧版本需升级后继续使用。",
+  "releaseNotes": "提升隐私与消息安全：修复首次启动授权流程，增强消息去重与本地私钥保护，优化后台消息同步；旧版本需升级后继续使用。",
   "enabled": true
 }
