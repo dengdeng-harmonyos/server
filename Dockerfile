@@ -118,6 +118,8 @@ ENV POSTGRES_DB=push_server \
 # 默认应用配置（可在docker-compose.yml中覆盖）
 ENV PORT=8080 \
   SERVER_NAME=噔噔推送服务 \
+  SERVER_VERSION=1.1.3 \
+  SERVER_BUILD=release \
   TZ=Asia/Shanghai
 
 # 暴露端口

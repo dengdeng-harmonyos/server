@@ -151,7 +151,7 @@ curl "http://your-server:8080/api/v1/diagnostics/device?device_id=YOUR_DEVICE_KE
 | `PUSH_TOKEN_ENCRYPTION_KEY` | Push Token 加密密钥（32字节，Base64） | ✅ | - |
 | `PUSH_ENCRYPTED_NOTIFICATION_EXTENSION` | 使用 push-type=2 在设备通知扩展中解密显示（需华为特殊权益） | ❌ | `false` |
 | `SERVER_NAME` | 服务器标识名称 | ❌ | `噔噔推送服务` |
-| `SERVER_VERSION` | 服务端版本号，用于 App 兼容性检查 | ❌ | `1.1.2` |
+| `SERVER_VERSION` | 服务端版本号，用于 App 兼容性检查 | ❌ | `1.1.3` |
 | `SERVER_API_VERSION` | 服务端 API 兼容版本 | ❌ | `3` |
 | `SERVER_CAPABILITIES` | 服务端能力列表，逗号分隔 | ❌ | `message_crypto_v1,push_url_data,push_deep_link_scheme,background_push_wake,app_update_policy,device_diagnostics` |
 | `SERVER_UPGRADE_URL` | App 提示用户升级服务端时展示的地址 | ❌ | `https://github.com/dengdeng-harmonyos/server` |
@@ -170,12 +170,12 @@ App 强制更新策略存储在数据库表 `app_update_policies` 中。发布 A
 ```json
 {
   "platform": "harmonyos",
-  "versionCode": 1000102,
-  "versionName": "1.1.2",
-  "minVersionCode": 1000102,
+  "versionCode": 1000103,
+  "versionName": "1.1.3",
+  "minVersionCode": 1000103,
   "forceUpdate": true,
   "storeUrl": "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng",
-  "releaseNotes": "新增后台 Push 唤醒同步，有待收消息时可更早同步到本机；旧版本 App 需要升级后继续使用。",
+  "releaseNotes": "提升隐私与消息安全：修复首次启动授权流程，推送内容改为加密传输，增强消息去重与本地密钥保护；旧版本需升级后继续使用。",
   "enabled": true
 }
 ```
@@ -184,11 +184,11 @@ App 强制更新策略存储在数据库表 `app_update_policies` 中。发布 A
 
 ```sql
 UPDATE app_update_policies
-SET latest_version_code = 1000102,
-    latest_version_name = '1.1.2',
-    min_version_code = 1000102,
+SET latest_version_code = 1000103,
+    latest_version_name = '1.1.3',
+    min_version_code = 1000103,
     force_update = true,
-    release_notes = '新增后台 Push 唤醒同步，有待收消息时可更早同步到本机；旧版本 App 需要升级后继续使用。',
+    release_notes = '提升隐私与消息安全：修复首次启动授权流程，推送内容改为加密传输，增强消息去重与本地密钥保护；旧版本需升级后继续使用。',
     updated_at = CURRENT_TIMESTAMP
 WHERE platform = 'harmonyos';
 ```
