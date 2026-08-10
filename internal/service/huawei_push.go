@@ -220,6 +220,15 @@ type PushResponse struct {
 // SendNotification 发送普通通知消息（push-type=0）。
 // HarmonyOS 普通通知由系统直接展示，因此标题、正文和点击数据会明文发送给华为 Push。
 func (s *HuaweiPushService) SendNotification(pushToken, title, body string, data map[string]interface{}) error {
+	notification := buildAlertNotification(title, body, data)
+
+	return s.sendPush(0, []string{pushToken}, AlertPayload{Notification: notification}, &PushOptions{
+		TestMessage: false,
+		TTL:         86400,
+	})
+}
+
+func buildAlertNotification(title, body string, data map[string]interface{}) Notification {
 	clickAction := ClickAction{
 		ActionType: 0,
 	}
@@ -230,7 +239,7 @@ func (s *HuaweiPushService) SendNotification(pushToken, title, body string, data
 	processedBody := strings.ReplaceAll(body, "\\n", "\n")
 	notification := Notification{
 		Category:    "WORK",
-		Title:       "[工作提醒]" + title,
+		Title:       title,
 		Body:        processedBody,
 		ClickAction: clickAction,
 		Badge:       &Badge{AddNum: 1},
@@ -244,10 +253,7 @@ func (s *HuaweiPushService) SendNotification(pushToken, title, body string, data
 		notification.InboxContent = lines
 	}
 
-	return s.sendPush(0, []string{pushToken}, AlertPayload{Notification: notification}, &PushOptions{
-		TestMessage: false,
-		TTL:         86400,
-	})
+	return notification
 }
 
 // SendFormUpdate 发送卡片刷新消息
