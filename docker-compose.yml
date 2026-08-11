@@ -10,12 +10,23 @@ services:
       - SERVER_NAME=噔噔推送服务
       # Push Token加密密钥（必需，使用独立密钥）
       - PUSH_TOKEN_ENCRYPTION_KEY=${PUSH_TOKEN_ENCRYPTION_KEY}
+      # 应用日志同时写入项目目录下的 logs/app.log
+      - LOG_FILE=/var/log/dengdeng/app.log
+      - LOG_MAX_SIZE_MB=20
+      - LOG_MAX_FILES=5
     ports:
       - "8080:8080"   # Web服务端口
     volumes:
       # 数据持久化
       - postgres_data:/var/lib/postgresql/data
+      # 项目目录日志（app.log、app.log.1 ...）
+      - ./logs:/var/log/dengdeng
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres && wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
       interval: 30s

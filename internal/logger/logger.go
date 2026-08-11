@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,15 +21,28 @@ var (
 	DebugLogger *log.Logger
 	// AccessLogger 访问日志
 	AccessLogger *log.Logger
-    // debugEnabled 是否启用调试日志
-    debugEnabled bool
+	// debugEnabled 是否启用调试日志
+	debugEnabled bool
 )
 
 // Init 初始化日志系统
 func Init() {
 	// 创建多个writer：标准输出
-	infoWriter := io.MultiWriter(os.Stdout)
-	errorWriter := io.MultiWriter(os.Stderr)
+	var infoWriter io.Writer = os.Stdout
+	var errorWriter io.Writer = os.Stderr
+
+	// 配置 LOG_FILE 后，同时写入 stdout/stderr 和项目挂载的轮转日志文件。
+	if logFile := os.Getenv("LOG_FILE"); logFile != "" {
+		maxSizeMB := getPositiveEnvInt("LOG_MAX_SIZE_MB", 20)
+		maxFiles := getPositiveEnvInt("LOG_MAX_FILES", 5)
+		fileWriter, err := newRotatingFileWriter(logFile, int64(maxSizeMB)*1024*1024, maxFiles)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[WARN] file logging disabled: %v\n", err)
+		} else {
+			infoWriter = io.MultiWriter(os.Stdout, fileWriter)
+			errorWriter = io.MultiWriter(os.Stderr, fileWriter)
+		}
+	}
 
 	// 先初始化不同级别的logger
 	InfoLogger = log.New(infoWriter, "[INFO] ", log.LstdFlags|log.Lshortfile)
@@ -43,6 +57,14 @@ func Init() {
 	if !debugEnabled {
 		Info("Debug logging disabled (GIN_MODE=%s)", ginMode)
 	}
+}
+
+func getPositiveEnvInt(name string, defaultValue int) int {
+	value, err := strconv.Atoi(os.Getenv(name))
+	if err != nil || value <= 0 {
+		return defaultValue
+	}
+	return value
 }
 
 // Info 记录信息日志
@@ -79,14 +101,14 @@ func ErrorWithStack(err error, format string, v ...interface{}) {
 
 // Debug 记录调试日志
 func Debug(format string, v ...interface{}) {
-    // 生产环境不输出 DEBUG 日志
-    if !debugEnabled {
-        return
-    }
-    if DebugLogger == nil {
-        Init()
-    }
-    DebugLogger.Output(2, fmt.Sprintf(format, v...))
+	// 生产环境不输出 DEBUG 日志
+	if !debugEnabled {
+		return
+	}
+	if DebugLogger == nil {
+		Init()
+	}
+	DebugLogger.Output(2, fmt.Sprintf(format, v...))
 }
 
 // Access 记录访问日志
@@ -104,9 +126,7 @@ func GinLogger() gin.HandlerFunc {
 
 		// 请求日志
 		Access("→ %s %s from %s", c.Request.Method, c.Request.URL.Path, c.ClientIP())
-		if debugEnabled && len(c.Request.URL.RawQuery) > 0 {
-			Debug("  Query: %s", c.Request.URL.RawQuery)
-		}
+		// 不记录 RawQuery，避免 device_id、原始通知内容和深链进入通用访问日志。
 
 		// 处理请求
 		c.Next()

@@ -100,7 +100,7 @@ func Load() *Config {
 			Port:       getEnv("PORT", "8080"),
 			Mode:       getEnv("GIN_MODE", "debug"),
 			ServerName: getEnv("SERVER_NAME", "噔噔推送服务"),
-			Version:    getEnv("SERVER_VERSION", "1.1.2"),
+			Version:    getEnv("SERVER_VERSION", "1.1.3"),
 			Build:      getEnv("SERVER_BUILD", "dev"),
 			APIVersion: getEnvInt64("SERVER_API_VERSION", 3),
 			Capabilities: getEnvStringList("SERVER_CAPABILITIES", []string{

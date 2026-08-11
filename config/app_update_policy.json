@@ -1,10 +1,10 @@
 {
   "platform": "harmonyos",
-  "versionCode": 1000102,
-  "versionName": "1.1.2",
-  "minVersionCode": 1000102,
+  "versionCode": 1000103,
+  "versionName": "1.1.3",
+  "minVersionCode": 1000103,
   "forceUpdate": true,
   "storeUrl": "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng",
-  "releaseNotes": "新增后台 Push 唤醒同步，有待收消息时可更早同步到本机；旧版本 App 需要升级后继续使用。",
+  "releaseNotes": "提升隐私与消息安全：修复首次启动授权流程，增强消息去重与本地私钥保护，优化后台消息同步；旧版本需升级后继续使用。",
   "enabled": true
 }

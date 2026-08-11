@@ -163,15 +163,17 @@ func (h *MessageHandler) SaveEncryptedMessage(
 	deviceId string,
 	serverName string,
 	encryptedMsg *service.EncryptedMessage,
-) error {
+) (string, error) {
 	expiresAt := time.Now().Add(30 * 24 * time.Hour) // 30天后过期
 
-	_, err := h.db.Exec(`
+	var messageID string
+	err := h.db.QueryRow(`
 		INSERT INTO pending_messages 
 		(device_id, server_name, encrypted_aes_key, encrypted_content, iv, expires_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id::TEXT
 	`, deviceId, serverName, encryptedMsg.EncryptedAESKey,
-		encryptedMsg.EncryptedContent, encryptedMsg.IV, expiresAt)
+		encryptedMsg.EncryptedContent, encryptedMsg.IV, expiresAt).Scan(&messageID)
 
-	return err
+	return messageID, err
 }

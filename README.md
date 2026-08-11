@@ -21,7 +21,8 @@
 
 ### 🔒 安全与隐私承诺
 
-- **🔑 RSA 公钥支持**：消息使用端到端消息加密，app端同步完即删除服务端加密数据
+- **🔑 RSA 公钥支持**：待同步消息使用 RSA/AES 加密，App 端同步完即删除服务端密文
+- **📢 通知展示边界**：HarmonyOS 普通通知使用 `push-type=0`，标题、正文和点击数据会明文发送给华为 Push；服务端暂存的待同步消息仍保持加密
 - **🔐 端到端加密**：Push Token 使用 AES-256-GCM 加密存储
 - **🎭 匿名化设计**：使用随机生成的 Device Id，与真实设备无关联
 - **🔑 配置编译时嵌入**：敏感配置在构建时嵌入二进制文件，无需配置文件
@@ -150,7 +151,7 @@ curl "http://your-server:8080/api/v1/diagnostics/device?device_id=YOUR_DEVICE_KE
 |---------|------|:----:|--------|
 | `PUSH_TOKEN_ENCRYPTION_KEY` | Push Token 加密密钥（32字节，Base64） | ✅ | - |
 | `SERVER_NAME` | 服务器标识名称 | ❌ | `噔噔推送服务` |
-| `SERVER_VERSION` | 服务端版本号，用于 App 兼容性检查 | ❌ | `1.1.2` |
+| `SERVER_VERSION` | 服务端版本号，用于 App 兼容性检查 | ❌ | `1.1.3` |
 | `SERVER_API_VERSION` | 服务端 API 兼容版本 | ❌ | `3` |
 | `SERVER_CAPABILITIES` | 服务端能力列表，逗号分隔 | ❌ | `message_crypto_v1,push_url_data,push_deep_link_scheme,background_push_wake,app_update_policy,device_diagnostics` |
 | `SERVER_UPGRADE_URL` | App 提示用户升级服务端时展示的地址 | ❌ | `https://github.com/dengdeng-harmonyos/server` |
@@ -169,12 +170,12 @@ App 强制更新策略存储在数据库表 `app_update_policies` 中。发布 A
 ```json
 {
   "platform": "harmonyos",
-  "versionCode": 1000102,
-  "versionName": "1.1.2",
-  "minVersionCode": 1000102,
+  "versionCode": 1000103,
+  "versionName": "1.1.3",
+  "minVersionCode": 1000103,
   "forceUpdate": true,
   "storeUrl": "store://appgallery.huawei.com/app/detail?id=top.yidingyaojizhu.dengdeng",
-  "releaseNotes": "新增后台 Push 唤醒同步，有待收消息时可更早同步到本机；旧版本 App 需要升级后继续使用。",
+  "releaseNotes": "提升隐私与消息安全：修复首次启动授权流程，增强消息去重与本地私钥保护，优化后台消息同步；旧版本需升级后继续使用。",
   "enabled": true
 }
 ```
@@ -183,11 +184,11 @@ App 强制更新策略存储在数据库表 `app_update_policies` 中。发布 A
 
 ```sql
 UPDATE app_update_policies
-SET latest_version_code = 1000102,
-    latest_version_name = '1.1.2',
-    min_version_code = 1000102,
+SET latest_version_code = 1000103,
+    latest_version_name = '1.1.3',
+    min_version_code = 1000103,
     force_update = true,
-    release_notes = '新增后台 Push 唤醒同步，有待收消息时可更早同步到本机；旧版本 App 需要升级后继续使用。',
+    release_notes = '提升隐私与消息安全：修复首次启动授权流程，增强消息去重与本地私钥保护，优化后台消息同步；旧版本需升级后继续使用。',
     updated_at = CURRENT_TIMESTAMP
 WHERE platform = 'harmonyos';
 ```

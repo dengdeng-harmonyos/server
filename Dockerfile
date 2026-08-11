@@ -115,9 +115,14 @@ ENV POSTGRES_DB=push_server \
   GIN_MODE=release \
   DB_SSLMODE=disable
 
-# 默认应用配置（可在docker-compose.yml中覆盖）
+# 默认应用配置（可在 docker-compose.yml 中覆盖）。构建标识由 CI 注入，
+# 便于从 /health 明确区分 test 与 production，避免误操作环境。
+ARG SERVER_VERSION=1.1.3
+ARG SERVER_BUILD=release
 ENV PORT=8080 \
   SERVER_NAME=噔噔推送服务 \
+  SERVER_VERSION=${SERVER_VERSION} \
+  SERVER_BUILD=${SERVER_BUILD} \
   TZ=Asia/Shanghai
 
 # 暴露端口

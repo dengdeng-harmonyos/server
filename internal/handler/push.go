@@ -130,7 +130,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	}
 
 	// 2. 先保存加密消息，确保后台唤醒或普通通知到达时 App 已有 pending 可拉取。
-	err = h.messageHandler.SaveEncryptedMessage(req.DeviceId, h.serverName, encryptedMsg)
+	_, err = h.messageHandler.SaveEncryptedMessage(req.DeviceId, h.serverName, encryptedMsg)
 	if err != nil {
 		logger.ErrorWithStack(err, "Failed to save encrypted message for device: %s", req.DeviceId)
 		RespondError(c, http.StatusInternalServerError, models.OperationFailed, "Failed to save message: "+err.Error())
@@ -140,7 +140,14 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 	// 3. 有 pending 消息时发送一次低频后台唤醒信号，失败不影响普通通知。
 	h.maybeSendBackgroundSyncSignal(req.DeviceId, pushToken)
 
-	// 4. 发送华为推送通知（明文内容，用于显示通知）
+	// 4. 调试模式打印推送转换前后的业务内容。生产 release 模式不会输出。
+	originalJSON, _ := json.Marshal(messageContent)
+	encryptedJSON, _ := json.Marshal(encryptedMsg)
+	logger.Debug("Huawei push original content: %s", string(originalJSON))
+	logger.Debug("Huawei push encrypted content: %s", string(encryptedJSON))
+
+	// 5. HarmonyOS 普通通知只能使用 push-type=0，由华为直接展示明文标题和正文。
+	// pending message 仍保持 RSA/AES 加密，供 App 同步后在本地解密。
 	notificationData := map[string]interface{}{
 		"type":          "new_message",
 		"server_name":   h.serverName,
@@ -156,7 +163,7 @@ func (h *PushHandler) SendNotification(c *gin.Context) {
 		return
 	}
 
-	logger.Info("Successfully sent notification to device: %s, title: %s", req.DeviceId, req.Title)
+	logger.Info("Successfully sent notification to device: %s", req.DeviceId)
 
 	RespondSuccess(c, http.StatusOK, gin.H{
 		"message": "Notification sent successfully",

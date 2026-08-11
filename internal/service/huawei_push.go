@@ -205,12 +205,6 @@ type BackgroundPayload struct {
 	ProxyData string `json:"proxyData,omitempty"` // 数据代理："ENABLE"
 }
 
-// 语音播报消息Payload（push-type=2）
-type ExtensionPayload struct {
-	Notification Notification `json:"notification"` // category必须为"PLAY_VOICE"
-	ExtraData    string       `json:"extraData"`    // 语音播报额外数据（必填）
-}
-
 // 应用内通话消息Payload（push-type=10）
 type VoIPCallPayload struct {
 	ExtraData string `json:"extraData"` // 传递给应用的数据（必填）
@@ -223,56 +217,43 @@ type PushResponse struct {
 	RequestID string `json:"requestId"`
 }
 
-// SendNotification 发送通知消息（Alert）
+// SendNotification 发送普通通知消息（push-type=0）。
+// HarmonyOS 普通通知由系统直接展示，因此标题、正文和点击数据会明文发送给华为 Push。
 func (s *HuaweiPushService) SendNotification(pushToken, title, body string, data map[string]interface{}) error {
-	logger.Debug("Sending notification: title=%s, body=%s, token=%s...", title, body, pushToken[:20])
+	notification := buildAlertNotification(title, body, data)
 
-	// 构建点击行为
+	return s.sendPush(0, []string{pushToken}, AlertPayload{Notification: notification}, &PushOptions{
+		TestMessage: false,
+		TTL:         86400,
+	})
+}
+
+func buildAlertNotification(title, body string, data map[string]interface{}) Notification {
 	clickAction := ClickAction{
-		ActionType: 0, // 0: 打开应用首页
+		ActionType: 0,
 	}
-
-	// 如果有额外数据，设置为点击时传递的数据
 	if data != nil {
 		clickAction.Data = data
-		logger.Debug("  Extra data: %+v", data)
 	}
 
-	notification := Notification{
-		Category:    "WORK", // 默认使用工作提醒类型，可根据业务需求修改
-		Title:       "[工作提醒]" + title,
-		Body:        body,
-		ClickAction: clickAction,
-		Badge:       &Badge{AddNum: 1}, // 默认角标加1
-	}
-
-	// 判断body是否包含\n（支持URL编码的\n和实际的换行符）
-	// 先将字面量的\n转换为实际的换行符
 	processedBody := strings.ReplaceAll(body, "\\n", "\n")
-
+	notification := Notification{
+		Category:    "WORK",
+		Title:       title,
+		Body:        processedBody,
+		ClickAction: clickAction,
+		Badge:       &Badge{AddNum: 1},
+	}
 	if strings.Contains(processedBody, "\n") {
-		notification.Style = 3   // 多行文本样式
+		notification.Style = 3
 		lines := strings.Split(processedBody, "\n")
 		if len(lines) > 3 {
 			lines = lines[:3]
 		}
 		notification.InboxContent = lines
-	} else {
-		notification.Body = processedBody
 	}
 
-	// 构建通知消息payload
-	payload := AlertPayload{
-		Notification: notification,
-	}
-
-	// 默认使用测试消息选项
-	options := &PushOptions{
-		TestMessage: false,
-		TTL:         86400, // 1天
-	}
-
-	return s.sendPush(0, []string{pushToken}, payload, options)
+	return notification
 }
 
 // SendFormUpdate 发送卡片刷新消息
@@ -322,40 +303,6 @@ func (s *HuaweiPushService) SendVoIPCall(pushToken string, extraData string) err
 	return s.sendPush(10, []string{pushToken}, payload, options)
 }
 
-// SendBatchNotification 批量发送通知消息
-func (s *HuaweiPushService) SendBatchNotification(pushTokens []string, title, body string, data map[string]interface{}) error {
-	if len(pushTokens) > 1000 {
-		return fmt.Errorf("batch size exceeds limit: %d (max 1000)", len(pushTokens))
-	}
-
-	// 构建点击行为
-	clickAction := ClickAction{
-		ActionType: 0, // 0: 打开应用首页
-	}
-
-	if data != nil {
-		clickAction.Data = data
-	}
-
-	// 构建通知消息payload
-	payload := AlertPayload{
-		Notification: Notification{
-			Category:    "WORK",
-			Title:       "[工作提醒]" + title,
-			Body:        body,
-			ClickAction: clickAction,
-			Badge:       &Badge{AddNum: 1}, // 默认角标加1
-		},
-	}
-
-	options := &PushOptions{
-		TestMessage: false,
-		TTL:         86400,
-	}
-
-	return s.sendPush(0, pushTokens, payload, options)
-}
-
 // sendPush 通用推送方法
 func (s *HuaweiPushService) sendPush(pushType int, tokens []string, payload interface{}, options *PushOptions) error {
 	logger.Debug("sendPush: type=%d, tokens=%d", pushType, len(tokens))
@@ -381,7 +328,10 @@ func (s *HuaweiPushService) sendPush(pushType int, tokens []string, payload inte
 	if err != nil {
 		return fmt.Errorf("failed to marshal request: %w", err)
 	}
-	logger.Debug("Request payload: %s", string(jsonData))
+	payloadJSON, _ := json.Marshal(payload)
+	optionsJSON, _ := json.Marshal(options)
+	logger.Debug("Huawei push payload: type=%d targetCount=%d payload=%s pushOptions=%s",
+		pushType, len(tokens), string(payloadJSON), string(optionsJSON))
 
 	// 构建请求
 	url := fmt.Sprintf("%s/%s/messages:send", s.config.PushAPIURL, s.projectID)
@@ -480,14 +430,5 @@ func (s *HuaweiPushService) getAccessToken() (string, error) {
 	s.tokenExpiry = time.Unix(exp, 0)
 
 	logger.Info("✓ New JWT token generated (expires in 3600s)")
-	logger.Debug("JWT token: %s...", jwtToken[:min(50, len(jwtToken))])
-
 	return s.accessToken, nil
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
